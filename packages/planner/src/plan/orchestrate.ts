@@ -50,6 +50,13 @@ export class AgentPassBudgetExhaustedError extends Error {
   }
 }
 
+export class AgentPassCheckpointError extends Error {
+  constructor(message = 'Agent-pass checkpoint interval reached; run paused for review.') {
+    super(message);
+    this.name = 'AgentPassCheckpointError';
+  }
+}
+
 export interface PlanDeps {
   doctorDeps: DoctorDeps;
   promptAgent: (prompt: string, cwd: string) => Promise<string>;
@@ -132,8 +139,24 @@ async function consumeAgentPass(
     throw new AgentPassBudgetExhaustedError();
   }
 
+  const profile = resolveBudgetProfile(ref.run.budget);
   const result = await fn();
   const updatedRef = incrementAgentPass(ref);
+  const used = updatedRef.run.agent_pass_budget.used;
+
+  if (used >= updatedRef.run.agent_pass_budget.limit) {
+    pauseRun(projectRoot, 'Agent-pass budget exhausted — resume with `foundry resume`');
+    throw new AgentPassBudgetExhaustedError();
+  }
+
+  if (used > 0 && used % profile.checkpoint_interval_passes === 0) {
+    pauseRun(
+      projectRoot,
+      `Checkpoint after ${used} agent passes — resume with \`foundry resume\``,
+    );
+    throw new AgentPassCheckpointError();
+  }
+
   return { ref: updatedRef, result };
 }
 
