@@ -11,11 +11,8 @@ CLI="$ROOT/packages/cli/bin/foundry.js"
 SHA="$(git rev-parse HEAD)"
 NODE_V="$(node -v)"
 
-if [ -f "$ROOT/.nvmrc" ] && command -v fnm >/dev/null 2>&1; then
-  eval "$(fnm env)"
-  fnm use >/dev/null 2>&1 || true
-  npm rebuild sqlite3 --silent 2>/dev/null || true
-fi
+# Use active Node (CI: setup-node + .nvmrc + npm rebuild sqlite3). Do not fnm-switch here —
+# switching ABI without rebuild breaks sqlite3 and flakes cursor-adapter tests.
 
 run_cmd() {
   local tier="$1"

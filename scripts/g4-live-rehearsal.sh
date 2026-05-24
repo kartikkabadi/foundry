@@ -10,12 +10,6 @@ source "$ROOT/scripts/g4-log.sh"
 CLI="$ROOT/packages/cli/bin/foundry.js"
 SHA="$(git rev-parse HEAD)"
 
-if [ -f "$ROOT/.nvmrc" ] && command -v fnm >/dev/null 2>&1; then
-  eval "$(fnm env)"
-  fnm use >/dev/null 2>&1 || true
-  npm rebuild sqlite3 --silent 2>/dev/null || true
-fi
-
 has_auth() {
   [ -n "${CURSOR_API_KEY:-}" ] || [ -f "${HOME}/.pi/agent/auth.json" ]
 }

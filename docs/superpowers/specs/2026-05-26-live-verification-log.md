@@ -10,7 +10,7 @@
 |-------|-------|
 | Date | 2026-05-25 |
 | Operator | Foundry agent + Kartik |
-| Git SHA (`main`) | `c4330968c082747a1a9874154bc59c3cf8120fec` |
+| Git SHA (PR1 branch) | `8375ffbd6a26e5e4225df965c1b036028d376644` |
 | Node version | 20 per `.nvmrc` (batch ran on v24.14.1) |
 | Worktree path | temp project under `mktemp` via `scripts/g4-live-rehearsal.sh` |
 | Canonical live run | `f313c3de-a3d0-474f-956f-fe5e672dcb57` (temp dir removed after run) |
@@ -53,7 +53,21 @@
 
 
 
-## Entries (automated batch) 2026-05-24T20:05Z
+
+
+## Entries (automated batch) 2026-05-24T20:10Z
 
 | Tier | Command | Exit | Artifacts / notes |
 |------|---------|------|-------------------|
+| E | `npm test` | 0 | ok |
+| E | `scripts/demo.sh` | 0 | ok |
+| E | `scripts/demo-build.sh` | 0 | ok |
+| A | `foundry --version` | 0 | ok |
+| A | `foundry --help` | 0 | ok |
+| A | `doctor --json --for plan` | 0 | ok |
+| A | `doctor --json --for build` | 0 | ok |
+| A | `foundry init` | 0 | ok |
+| A | `foundry plan (live)` | — | see Entries (live phased) |
+| A | `foundry build (live)` | — | see Entries (live phased) |
+| D | `pi-cursor-sdk smoke` | — | see Entries (live phased) |
+| C | `secrets grep` | — | see Entries (live phased) |
