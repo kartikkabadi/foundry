@@ -13,7 +13,6 @@ import { LoopDetector } from '@foundry/core/loop/detection.js';
 import { appendEvent, appendThreadHandoff } from '@foundry/core/comms/events.js';
 import {
   agentPassBudgetFromProfile,
-  BUDGET_PROFILES,
   DEFAULT_BUDGET,
   resolveBudgetProfile,
 } from '@foundry/core/config/budget-profiles.js';
