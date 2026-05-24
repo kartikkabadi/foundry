@@ -11,6 +11,7 @@ Files:
 - `RUNNING_SPEC.md` - the current product shape in one coherent spec.
 - `V1_PLAN.md` - concise v1 scope, architecture, milestones, and verification plan.
 - `GITHUB_ISSUE_BREAKDOWN.md` - Matt Pocock-style vertical-slice issue draft for GitHub.
+- `PUBLISHED_ISSUES.md` - published GitHub issue URLs for the v1 slices.
 - `OPEN_QUESTIONS.md` - next planning branches to resolve.
 
 Status:

@@ -4,7 +4,18 @@ Created: 2026-05-24
 
 Source: `V1_PLAN.md`
 
-Status: Draft issue breakdown. Not yet published to GitHub because no canonical Foundry repository exists yet.
+Status: Published to `kartikkabadi/foundry`.
+
+Published issues:
+
+- #1: https://github.com/kartikkabadi/foundry/issues/1
+- #2: https://github.com/kartikkabadi/foundry/issues/2
+- #3: https://github.com/kartikkabadi/foundry/issues/3
+- #4: https://github.com/kartikkabadi/foundry/issues/4
+- #5: https://github.com/kartikkabadi/foundry/issues/5
+- #6: https://github.com/kartikkabadi/foundry/issues/6
+- #7: https://github.com/kartikkabadi/foundry/issues/7
+- #8: https://github.com/kartikkabadi/foundry/issues/8
 
 ## Issue 1: Bootstrap the Foundry CLI and Local State
 
@@ -200,4 +211,3 @@ Acceptance criteria:
 - [ ] Troubleshooting guide covers Pi/Cursor/Composer/GitHub failures.
 - [ ] Example run shows the expected planning artifacts.
 - [ ] Smoke test verifies the v1 success case in a fixture repo.
-
