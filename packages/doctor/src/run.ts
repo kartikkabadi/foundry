@@ -94,7 +94,7 @@ export async function runDoctorChecks(
   options: RunDoctorOptions,
 ): Promise<DoctorReport> {
   const { forTarget, deep, strict, composerFastExplicit = false } = options;
-  const includeOptional = forTarget === 'all' || forTarget === 'setup';
+  const includeOptional = forTarget === 'all' || forTarget === 'setup' || forTarget === 'build';
   const includeExpanded = forTarget === 'all';
   const checks: DoctorCheck[] = [];
 

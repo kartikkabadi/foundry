@@ -10,6 +10,7 @@ import {
   createRun,
   initProject,
 } from '@foundry/core/state/run-writer.js';
+import { FIXTURE_ISSUE_PLAN, initGitRepo } from './build-fixtures.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');
@@ -72,17 +73,25 @@ describe('foundry approve (V2-7)', () => {
   });
 
   it('build passes approval gate when run is approved', () => {
-    createRun(projectRoot, '0.1.0', {
+    initGitRepo(projectRoot);
+    const ref = createRun(projectRoot, '0.1.0', {
       run_id: 'approved-run',
       status: 'approved',
       phase: 'awaiting_approval',
     });
+    fs.writeFileSync(path.join(ref.runDir, 'issue-plan.md'), FIXTURE_ISSUE_PLAN, 'utf8');
+    fs.writeFileSync(
+      path.join(ref.runDir, 'autonomy-contract.md'),
+      'default = "productive"\n',
+      'utf8',
+    );
 
-    const out = execSync(`node "${CLI}" build`, {
+    const out = execSync(`node "${CLI}" build --dry-run`, {
       encoding: 'utf8',
       cwd: projectRoot,
+      env: { ...process.env, CURSOR_API_KEY: 'test-key' },
     });
-    assert.ok(out.includes('preflight passed'));
+    assert.ok(out.includes('#1:') || out.includes('preflight passed'));
   });
 
   it('foundry approve CLI transitions status', () => {

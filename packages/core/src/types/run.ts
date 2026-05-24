@@ -1,5 +1,7 @@
 /** Frozen run.json contract (H0). Do not change without spec review. */
 
+import type { BuildState, ProofRecord } from './build.js';
+
 export const RUN_JSON_SCHEMA_VERSION = 1 as const;
 
 export type RunMode = 'plan' | 'build';
@@ -17,7 +19,11 @@ export type RunPhase =
   | 'interview'
   | 'algorithm_pass'
   | 'synthesis'
-  | 'awaiting_approval';
+  | 'awaiting_approval'
+  | 'build_preflight'
+  | 'build_executing'
+  | 'build_review'
+  | 'build_complete';
 export type ComposerSpeed = 'standard' | 'fast';
 
 export interface AgentPassBudget {
@@ -41,4 +47,6 @@ export interface RunJson {
   artifacts: string[];
   blocked_actions: string[];
   next_actions: string[];
+  proofs?: ProofRecord[];
+  build?: BuildState;
 }

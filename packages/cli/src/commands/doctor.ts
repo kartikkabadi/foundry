@@ -46,10 +46,10 @@ export function parseDoctorArgs(args: string[]): ParsedDoctorArgs {
     }
     if (arg === '--for') {
       const value = args[++i];
-      if (value === 'plan' || value === 'setup' || value === 'all') {
+      if (value === 'plan' || value === 'setup' || value === 'all' || value === 'build') {
         forTarget = value;
       } else {
-        console.error(`Invalid --for value: ${value ?? '(missing)'}. Use plan, setup, or all.`);
+        console.error(`Invalid --for value: ${value ?? '(missing)'}. Use plan, setup, build, or all.`);
         process.exit(2);
       }
       continue;
@@ -57,7 +57,7 @@ export function parseDoctorArgs(args: string[]): ParsedDoctorArgs {
 
     console.error(`Unknown doctor option: ${arg}`);
     console.error(
-      'Usage: foundry doctor [--for plan|setup|all] [--deep] [--composer-fast] [--json] [--strict] [--fix]',
+      'Usage: foundry doctor [--for plan|setup|build|all] [--deep] [--composer-fast] [--json] [--strict] [--fix]',
     );
     process.exit(2);
   }

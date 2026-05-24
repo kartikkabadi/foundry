@@ -1,7 +1,44 @@
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
+import {
+  executeBuild,
+  handleBuildError,
+} from '@foundry/planner/build/orchestrate.js';
 
-export function runBuild(_args: string[]): void {
+export interface ParsedBuildArgs {
+  dryRun: boolean;
+  deferIssue?: number;
+}
+
+export function parseBuildArgs(args: string[]): ParsedBuildArgs {
+  let dryRun = false;
+  let deferIssue: number | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--dry-run') {
+      dryRun = true;
+      continue;
+    }
+    if (arg === '--defer') {
+      const value = args[++i];
+      deferIssue = Number.parseInt(value ?? '', 10);
+      if (Number.isNaN(deferIssue)) {
+        console.error('foundry build: --defer requires an issue number.');
+        process.exit(2);
+      }
+      continue;
+    }
+    console.error(`Unknown build option: ${arg}`);
+    console.error('Usage: foundry build [--dry-run] [--defer <issue>]');
+    process.exit(2);
+  }
+
+  return { dryRun, deferIssue };
+}
+
+export function runBuild(args: string[]): void {
   const projectRoot = process.cwd();
+  const parsed = parseBuildArgs(args);
 
   try {
     const latest = findLatestRun(projectRoot);
@@ -10,15 +47,36 @@ export function runBuild(_args: string[]): void {
       process.exit(1);
     }
 
-    if (latest.run.status !== 'approved') {
+    if (latest.run.status !== 'approved' && latest.run.status !== 'running' && latest.run.status !== 'paused') {
       console.error(
         'foundry build: plan not approved. Complete `foundry plan` and run `foundry approve` first.',
       );
       process.exit(1);
     }
 
-    console.log('Build preflight passed (execution not yet implemented — V3).');
-    process.exit(0);
+    executeBuild({
+      projectRoot,
+      ref: latest,
+      dryRun: parsed.dryRun,
+      deferIssueNumber: parsed.deferIssue,
+    })
+      .then((ref) => {
+        if (parsed.dryRun) {
+          process.exit(0);
+        }
+        if (ref.run.build?.goal_complete) {
+          console.log('Build complete. Build goal satisfied.');
+        } else if (ref.run.phase === 'build_review') {
+          console.log('Build paused for orchestrator review.');
+        } else {
+          console.log('Build preflight passed and execution progressed.');
+          if (ref.run.build) {
+            console.log(ref.run.next_actions[0] ?? '');
+          }
+        }
+        process.exit(0);
+      })
+      .catch(handleBuildError);
   } catch (error) {
     if (error instanceof RunStateError) {
       console.error(`foundry build: ${error.message}`);

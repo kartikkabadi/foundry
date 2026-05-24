@@ -30,7 +30,7 @@ const doctorCheckIdSchema = z.enum([
 
 const doctorReportSchema = z.object({
   schemaVersion: z.literal(DOCTOR_SCHEMA_VERSION),
-  for: z.enum(['plan', 'setup', 'all']),
+  for: z.enum(['plan', 'setup', 'all', 'build']),
   checks: z.array(
     z.object({
       id: doctorCheckIdSchema,

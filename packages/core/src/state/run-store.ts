@@ -131,6 +131,20 @@ export function statusMarkdown(run: RunJson, runDir?: string): string {
     }
   }
 
+  if (run.build) {
+    lines.push('', '## Build', '');
+    lines.push(`- **Goal complete:** ${run.build.goal_complete ? 'yes' : 'no'}`);
+    if (run.build.deferred.length > 0) {
+      lines.push(`- **Deferred:** ${run.build.deferred.map((n) => `#${n}`).join(', ')}`);
+    }
+    if (run.build.review_status === 'pending') {
+      lines.push('- **Review:** awaiting_review');
+    }
+    if (run.build.current_issue) {
+      lines.push(`- **Current issue:** #${run.build.current_issue}`);
+    }
+  }
+
   lines.push('');
   return lines.join('\n');
 }

@@ -35,7 +35,7 @@ export interface DoctorCheck {
   repair?: string;
 }
 
-export type DoctorForTarget = 'plan' | 'setup' | 'all';
+export type DoctorForTarget = 'plan' | 'setup' | 'all' | 'build';
 
 export interface DoctorReport {
   schemaVersion: typeof DOCTOR_SCHEMA_VERSION;
