@@ -1,0 +1,24 @@
+{
+  "name": "foundry",
+  "version": "0.1.0",
+  "description": "Planning-first Pi setup/runtime CLI (Composer 2.5 exclusive in v1)",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "foundry": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "test": "node --test tests/",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
