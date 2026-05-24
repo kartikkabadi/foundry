@@ -19,7 +19,7 @@ These are the next planning branches to grill. They are not locked yet unless ma
 | `node-package-manager` | npm or pnpm available |
 | `foundry-install` | Node ≥20, `dist/cli.js` exists after build |
 | `pi-cli` | **Required** for hackathon "real Pi" demo narrative |
-| `cursor-sdk` | `CURSOR_API_KEY` set, `@cursor/sdk` resolves |
+| `cursor-sdk` | Cursor API key (`CURSOR_API_KEY` or Pi `auth.json`), `@cursor/sdk` resolves |
 | `composer-2.5-standard` | `--deep` smoke: bounded `Agent.prompt`, **60s timeout** |
 | `project-foundry-config` | `.foundry/config.toml` present (warn before init) |
 

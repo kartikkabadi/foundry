@@ -43,6 +43,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
     assert.ok(out.includes('doctor'));
     assert.ok(out.includes('setup'));
     assert.ok(out.includes('plan'));
+    assert.ok(out.includes('publish'));
     assert.ok(out.includes('status'));
     assert.ok(out.includes('pause'));
     assert.ok(out.includes('resume'));

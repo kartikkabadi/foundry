@@ -47,6 +47,7 @@ function mockDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
     cwd: tmpRoot,
     env: { CURSOR_API_KEY: 'test-key' },
     foundryRoot: tmpRoot,
+    piAuthPath: path.join(tmpRoot, 'missing-auth.json'),
     exec(command: string, args: string[] = []) {
       const key = `${command}::${args.join(' ')}`;
       return commands.get(key) ?? { ok: false, stdout: '', stderr: `${key} not mocked` };
@@ -107,9 +108,21 @@ describe('doctor checks (injected deps, no network)', () => {
     assert.strictEqual(checkCursorSdk(mockDeps()).status, 'pass');
   });
 
-  it('checkCursorSdk fails without CURSOR_API_KEY', () => {
+  it('checkCursorSdk fails without CURSOR_API_KEY or Pi auth', () => {
     const deps = mockDeps({ env: {} });
     assert.strictEqual(checkCursorSdk(deps).status, 'fail');
+  });
+
+  it('checkCursorSdk passes with Pi auth fallback', () => {
+    const authPath = path.join(os.tmpdir(), `foundry-pi-auth-${Date.now()}.json`);
+    fs.writeFileSync(
+      authPath,
+      JSON.stringify({ cursor: { type: 'api_key', key: 'pi-test-key' } }),
+      'utf8',
+    );
+    const deps = mockDeps({ env: {}, piAuthPath: authPath });
+    assert.strictEqual(checkCursorSdk(deps).status, 'pass');
+    fs.unlinkSync(authPath);
   });
 
   it('checkComposer25Standard skips without --deep', async () => {

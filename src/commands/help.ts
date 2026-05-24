@@ -8,6 +8,7 @@ Commands (v1):
   doctor     Run capability checks
   setup      Agent-guided setup
   plan       Create planning artifacts
+  publish    Convert issue-plan.md to drafts (GitHub with --approve)
   status     Show current run status
   pause      Pause an active run
   resume     Resume a paused run

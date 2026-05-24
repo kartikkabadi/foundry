@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc",
+    "postinstall": "npm run install --prefix node_modules/sqlite3 --silent 2>/dev/null || npm rebuild sqlite3 --silent 2>/dev/null || true",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -19,7 +20,7 @@
     "typescript": "^5.8.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20 <23"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.13"

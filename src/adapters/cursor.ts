@@ -1,5 +1,6 @@
 /** Cursor SDK boundary (Issue #5). */
 
+import { resolveCursorApiKey } from '../config/cursor-auth.js';
 import { safeErrorMessage, scrubSecrets } from '../plan/secrets.js';
 
 export interface ComposerSmokeResult {
@@ -38,12 +39,13 @@ async function loadAgent() {
 export async function checkComposerStandard(options: {
   timeoutMs: number;
   cwd?: string;
+  apiKey?: string;
 }): Promise<ComposerSmokeResult> {
-  const apiKey = process.env.CURSOR_API_KEY?.trim();
+  const apiKey = options.apiKey ?? resolveCursorApiKey().apiKey;
   if (!apiKey) {
     return {
       ok: false,
-      message: 'CURSOR_API_KEY not set',
+      message: 'Cursor API key not configured (set CURSOR_API_KEY or Pi cursor auth)',
     };
   }
 
@@ -60,9 +62,7 @@ export async function checkComposerStandard(options: {
     );
 
     const text = scrubSecrets(result.result ?? '');
-    const passed =
-      result.status === 'finished' &&
-      (text.includes('FOUNDRY_COMPOSER_OK') || text.length > 0);
+    const passed = result.status === 'finished' && text.includes('FOUNDRY_COMPOSER_OK');
 
     if (passed) {
       return {
@@ -83,10 +83,11 @@ export async function checkComposerStandard(options: {
   }
 }
 
-export function createCursorAdapter(): CursorAdapter {
+export function createCursorAdapter(apiKey?: string): CursorAdapter {
+  const resolved = apiKey ?? resolveCursorApiKey().apiKey;
   return {
     smokeComposerStandard(options) {
-      return checkComposerStandard(options);
+      return checkComposerStandard({ ...options, apiKey: resolved });
     },
   };
 }
@@ -94,15 +95,16 @@ export function createCursorAdapter(): CursorAdapter {
 export async function promptComposer(
   prompt: string,
   cwd: string,
+  apiKey?: string,
 ): Promise<string> {
-  const apiKey = process.env.CURSOR_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error('CURSOR_API_KEY not set');
+  const resolved = apiKey ?? resolveCursorApiKey().apiKey;
+  if (!resolved) {
+    throw new Error('Cursor API key not configured (set CURSOR_API_KEY or Pi cursor auth)');
   }
 
   const Agent = await loadAgent();
   const result = await Agent.prompt(prompt, {
-    apiKey,
+    apiKey: resolved,
     model: { id: 'composer-2.5' },
     local: { cwd },
   });

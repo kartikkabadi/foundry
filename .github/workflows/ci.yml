@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, hackathon/integration]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: socketdev/action@v1.3.1
+        with:
+          mode: firewall-free
+
+      - name: Install dependencies
+        run: sfw npm ci
+
+      - name: Rebuild native modules
+        run: npm rebuild sqlite3
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Demo smoke (no live Composer)
+        run: bash scripts/demo.sh

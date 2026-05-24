@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CursorAdapter } from '../adapters/cursor.js';
 import { createCursorAdapter } from '../adapters/cursor.js';
+import { getDefaultPiAuthPath, resolveCursorApiKey } from '../config/cursor-auth.js';
 
 export interface ExecResult {
   ok: boolean;
@@ -19,6 +20,7 @@ export interface DoctorDeps {
   cwd: string;
   env: NodeJS.ProcessEnv;
   foundryRoot: string;
+  piAuthPath: string;
   exec(command: string, args?: string[]): ExecResult;
   fileExists(path: string): boolean;
   resolveModule(specifier: string, fromDir?: string): boolean;
@@ -58,17 +60,22 @@ export function getFoundryRoot(): string {
 
 export function createDefaultDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const foundryRoot = overrides.foundryRoot ?? getFoundryRoot();
+  const env = overrides.env ?? process.env;
+  const piAuthPath = overrides.piAuthPath ?? getDefaultPiAuthPath();
+  const apiKey = resolveCursorApiKey({ env, piAuthPath }).apiKey;
+
   return {
     platform: process.platform,
     arch: process.arch,
     nodeVersion: process.version,
     cwd: process.cwd(),
-    env: process.env,
+    env,
     foundryRoot,
+    piAuthPath,
     exec: execCommand,
     fileExists: existsSync,
     resolveModule: (specifier, fromDir) => resolveModule(specifier, fromDir ?? foundryRoot),
-    cursorAdapter: createCursorAdapter(),
+    cursorAdapter: createCursorAdapter(apiKey),
     ...overrides,
   };
 }

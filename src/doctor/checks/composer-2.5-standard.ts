@@ -1,4 +1,5 @@
 import type { DoctorCheck } from '../../types/doctor.js';
+import { resolveCursorApiKey } from '../../config/cursor-auth.js';
 import type { DoctorDeps } from '../deps.js';
 import { CursorAdapterNotImplementedError } from '../../adapters/cursor.js';
 
@@ -16,13 +17,14 @@ export async function checkComposer25Standard(
     };
   }
 
-  const apiKey = deps.env.CURSOR_API_KEY?.trim();
-  if (!apiKey) {
+  const resolution = resolveCursorApiKey({ env: deps.env, piAuthPath: deps.piAuthPath });
+  if (!resolution.apiKey) {
     return {
       id: 'composer-2.5-standard',
       status: 'fail',
-      message: 'Cannot smoke Composer without CURSOR_API_KEY.',
-      repair: 'Set CURSOR_API_KEY, then re-run `foundry doctor --deep`.',
+      message: 'Cannot smoke Composer without a Cursor API key.',
+      repair:
+        'Set CURSOR_API_KEY or configure Cursor in Pi, then re-run `foundry doctor --deep`.',
     };
   }
 
@@ -31,7 +33,7 @@ export async function checkComposer25Standard(
       id: 'composer-2.5-standard',
       status: 'fail',
       message: '@cursor/sdk required for Composer smoke.',
-      repair: 'Run `sfw npm install @cursor/sdk`, then re-run with --deep.',
+      repair: 'Run `sfw npm install @cursor/sdk`, then `npm rebuild sqlite3`, and re-run with --deep.',
     };
   }
 

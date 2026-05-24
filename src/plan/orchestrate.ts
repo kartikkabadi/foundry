@@ -7,14 +7,17 @@ import { printDoctorReport } from '../doctor/report.js';
 import { runDoctorChecks } from '../doctor/run.js';
 import { promptComposer } from '../adapters/cursor.js';
 import {
+  ALGORITHM_PASS_ARTIFACTS,
+  assertAlgorithmPassArtifacts,
   assertSynthesisArtifacts,
-  parseSynthesisArtifacts,
+  parseDelimitedArtifacts,
   REQUIRED_SYNTHESIS_ARTIFACTS,
   writeArtifact,
 } from './artifacts.js';
 import { validateIntentCoverage } from './coverage-slots.js';
 import { collectIntake, formatIntakeMarkdown } from './intake.js';
 import {
+  buildAlgorithmPassPrompt,
   buildInterviewPrompt,
   buildResearchPrompt,
   buildSynthesisPrompt,
@@ -111,19 +114,39 @@ export async function executePlan(options: ExecutePlanOptions): Promise<RunRef> 
   );
   validateIntentCoverage(intentRaw);
   writeArtifact(ref.runDir, 'intent.md', intentRaw);
-  ref = updateRunPhase(ref, 'synthesis', ['intent.md']);
+  ref = updateRunPhase(ref, 'algorithm_pass', ['intent.md']);
+
+  console.log('Algorithm Pass…');
+  const algorithmRaw = await deps.promptAgent(
+    buildAlgorithmPassPrompt(idea, intakeMd, researchMd, intentRaw),
+    projectRoot,
+  );
+  const algorithmParsed = parseDelimitedArtifacts(algorithmRaw);
+  assertAlgorithmPassArtifacts(algorithmParsed);
+
+  const algorithmWritten: string[] = [];
+  for (const name of ALGORITHM_PASS_ARTIFACTS) {
+    writeArtifact(ref.runDir, name, algorithmParsed.get(name)!);
+    algorithmWritten.push(name);
+  }
+
+  const algorithmSummary = ALGORITHM_PASS_ARTIFACTS.map(
+    (name) => `### ${name}\n${algorithmParsed.get(name)}`,
+  ).join('\n\n');
+
+  ref = updateRunPhase(ref, 'synthesis', algorithmWritten);
 
   console.log('Synthesizing planning artifacts…');
   const synthesisRaw = await deps.promptAgent(
-    buildSynthesisPrompt(idea, intakeMd, researchMd, intentRaw),
+    buildSynthesisPrompt(idea, intakeMd, researchMd, intentRaw, algorithmSummary),
     projectRoot,
   );
-  const parsed = parseSynthesisArtifacts(synthesisRaw);
-  assertSynthesisArtifacts(parsed);
+  const synthesisParsed = parseDelimitedArtifacts(synthesisRaw);
+  assertSynthesisArtifacts(synthesisParsed);
 
   const writtenArtifacts: string[] = [];
   for (const name of REQUIRED_SYNTHESIS_ARTIFACTS) {
-    writeArtifact(ref.runDir, name, parsed.get(name)!);
+    writeArtifact(ref.runDir, name, synthesisParsed.get(name)!);
     writtenArtifacts.push(name);
   }
 
@@ -138,6 +161,7 @@ export async function executePlan(options: ExecutePlanOptions): Promise<RunRef> 
       'intake.md',
       'research.md',
       'intent.md',
+      ...algorithmWritten,
       ...writtenArtifacts,
     ],
   });
@@ -152,12 +176,8 @@ export function printPlanCompleteBanner(ref: RunRef): void {
     'intake.md',
     'research.md',
     'intent.md',
-    'summary.md',
-    'prd.md',
-    'implementation-plan.md',
-    'issue-plan.md',
-    'build-goal.md',
-    'algorithm-pass.md',
+    ...ALGORITHM_PASS_ARTIFACTS,
+    ...REQUIRED_SYNTHESIS_ARTIFACTS,
     'autonomy-contract.md',
   ];
 

@@ -44,6 +44,7 @@ function mockDoctorDeps(projectRoot: string): DoctorDeps {
     cwd: projectRoot,
     env: { CURSOR_API_KEY: 'test-key' },
     foundryRoot: projectRoot,
+    piAuthPath: path.join(projectRoot, 'missing-auth.json'),
     exec(command: string, args: string[] = []) {
       if (command === 'npm') return { ok: true, stdout: '10.0.0', stderr: '' };
       if (command === 'pi') return { ok: true, stdout: 'pi 1.0.0', stderr: '' };
