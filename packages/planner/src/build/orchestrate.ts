@@ -10,6 +10,7 @@ import type { RunRef } from '@foundry/core/state/run-store.js';
 import { updateRunStatus, writeRunState } from '@foundry/core/state/run-store.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import {
+  depsSatisfied,
   formatExecutionOrder,
   parseIssuePlanGraph,
   topologicalOrder,
@@ -99,10 +100,17 @@ function initBuildState(nodes: IssuePlanNode[]): BuildState {
   };
 }
 
-function nextPendingIssue(build: BuildState, ordered: IssuePlanNode[]): IssuePlanNode | null {
+export function nextPendingIssue(
+  build: BuildState,
+  ordered: IssuePlanNode[],
+): IssuePlanNode | null {
   for (const node of ordered) {
     const state = build.issues.find((issue) => issue.number === node.number);
-    if (state?.status === 'pending' && !build.deferred.includes(node.number)) {
+    if (
+      state?.status === 'pending' &&
+      !build.deferred.includes(node.number) &&
+      depsSatisfied(build, node)
+    ) {
       return node;
     }
   }

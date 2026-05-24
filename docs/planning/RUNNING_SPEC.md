@@ -187,6 +187,12 @@ Every run writes:
 
 V1 runs are foreground-only but resumable. Background jobs are a later feature.
 
+### Build resume (V3-9 / V4 Task 0)
+
+- `foundry resume` re-enters the latest paused **Run** at its checkpoint (Plan or Build per `run.json`).
+- **Build resume** continues from the next **pending** issue in `run.build.issues`; issues already `completed` are not re-executed.
+- In-build pause (e.g. `build_review`) keeps the same Run; resume does not restart the full issue plan from issue 1.
+
 ## V1 Autonomy And Questions
 
 Foundry asks intent/product-boundary questions, not low-level implementation questions.

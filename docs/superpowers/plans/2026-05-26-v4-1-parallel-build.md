@@ -41,7 +41,7 @@
 
 **Acceptance (pick one):**
 - [ ] Split into `run-store-read.ts` / `run-store-write.ts` with re-exports, **or**
-- [ ] ADR note in plan comment: defer split until file exceeds 1k lines; parallel executor must use existing `writeRunState` only (no new ad-hoc JSON writes).
+- [x] **Deferred (Task 0 PR):** ~466 LOC &lt; 1k; parallel executor must use `writeRunState` only. **Phase 4a** run-store split required before V4-1 if still deferred.
 
 **Checkpoint (Task 0 GREEN):**
 
