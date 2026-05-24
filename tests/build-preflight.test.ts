@@ -5,7 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { executeBuild, runBuildPreflight } from '@foundry/planner/build/orchestrate.js';
+import {
+  BuildPreflightError,
+  executeBuild,
+  runBuildPreflight,
+} from '@foundry/planner/build/orchestrate.js';
 import { resolvePreflightOptions } from '@foundry/planner/build/preflight-options.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { createRun, initProject } from '@foundry/core/state/run-writer.js';
@@ -68,6 +72,35 @@ describe('foundry build preflight (V3-1)', () => {
       else process.env.FOUNDRY_BUILD_MOCK = prevMock;
       if (prevKey === undefined) delete process.env.CURSOR_API_KEY;
       else process.env.CURSOR_API_KEY = prevKey;
+    }
+  });
+
+  it('executeBuild aborts when deep build preflight fails (non-mock)', async () => {
+    const ref = seedApprovedBuildRun(projectRoot);
+    const doctorDeps = mockDoctorDeps(projectRoot);
+    doctorDeps.cursorAdapter = {
+      async smokeComposerStandard() {
+        return { ok: false, message: 'Composer smoke failed (test)' };
+      },
+      async smokeComposerFast() {
+        return { ok: true, message: 'mock fast' };
+      },
+    };
+    const prevMock = process.env.FOUNDRY_BUILD_MOCK;
+    delete process.env.FOUNDRY_BUILD_MOCK;
+    try {
+      await assert.rejects(
+        () =>
+          executeBuild({
+            projectRoot,
+            ref,
+            deps: { doctorDeps, workerDeps: mockBuildDeps(projectRoot).workerDeps! },
+          }),
+        (err: unknown) => err instanceof BuildPreflightError,
+      );
+    } finally {
+      if (prevMock === undefined) delete process.env.FOUNDRY_BUILD_MOCK;
+      else process.env.FOUNDRY_BUILD_MOCK = prevMock;
     }
   });
 
