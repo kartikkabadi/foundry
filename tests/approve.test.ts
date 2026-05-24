@@ -10,6 +10,8 @@ import {
   createRun,
   initProject,
 } from '@foundry/core/state/run-writer.js';
+import { executeBuild } from '@foundry/planner/build/orchestrate.js';
+import { FIXTURE_ISSUE_PLAN, mockDoctorDeps, seedApprovedBuildRun } from './build-fixtures.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');
@@ -71,18 +73,22 @@ describe('foundry approve (V2-7)', () => {
     );
   });
 
-  it('build passes approval gate when run is approved', () => {
-    createRun(projectRoot, '0.1.0', {
-      run_id: 'approved-run',
-      status: 'approved',
-      phase: 'awaiting_approval',
-    });
+  it('build passes approval gate when run is approved', async () => {
+    const buildRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-approve-build-'));
+    try {
+      const ref = seedApprovedBuildRun(buildRoot, '0.1.0', FIXTURE_ISSUE_PLAN);
+      const result = await executeBuild({
+        projectRoot: buildRoot,
+        ref,
+        dryRun: true,
+        deps: { doctorDeps: mockDoctorDeps(buildRoot) },
+      });
 
-    const out = execSync(`node "${CLI}" build`, {
-      encoding: 'utf8',
-      cwd: projectRoot,
-    });
-    assert.ok(out.includes('preflight passed'));
+      assert.strictEqual(result.run.status, 'approved');
+      assert.strictEqual(result.run.phase, 'awaiting_approval');
+    } finally {
+      fs.rmSync(buildRoot, { recursive: true, force: true });
+    }
   });
 
   it('foundry approve CLI transitions status', () => {

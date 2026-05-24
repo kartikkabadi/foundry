@@ -25,6 +25,10 @@ const runJsonSchema = z.object({
     'algorithm_pass',
     'synthesis',
     'awaiting_approval',
+    'build_preflight',
+    'build_executing',
+    'build_review',
+    'build_complete',
   ]),
   composer_speed: z.enum(['standard', 'fast']),
   created_at: z.string().min(1),
@@ -37,6 +41,40 @@ const runJsonSchema = z.object({
   artifacts: z.array(z.string()),
   blocked_actions: z.array(z.string()),
   next_actions: z.array(z.string()),
+  proofs: z
+    .array(
+      z.object({
+        issue: z.number().int().positive(),
+        type: z.enum(['code', 'ui', 'docs', 'config', 'research']),
+        path: z.string().min(1),
+        valid: z.boolean(),
+      }),
+    )
+    .optional(),
+  build: z
+    .object({
+      current_issue: z.number().int().positive().optional(),
+      issues: z.array(
+        z.object({
+          number: z.number().int().positive(),
+          title: z.string().min(1),
+          type: z.enum(['code', 'ui', 'docs', 'config', 'research']),
+          status: z.enum([
+            'pending',
+            'in_progress',
+            'awaiting_review',
+            'completed',
+            'deferred',
+          ]),
+          worktree: z.string().optional(),
+          blocked_by: z.array(z.number().int().positive()),
+        }),
+      ),
+      deferred: z.array(z.number().int().positive()),
+      review_status: z.enum(['pending', 'approved', 'rejected']).optional(),
+      goal_complete: z.boolean(),
+    })
+    .optional(),
 });
 
 function formatZodIssues(error: z.ZodError): string {

@@ -6,7 +6,8 @@
     "build": "tsc -p tsconfig.json"
   },
   "exports": {
-    "./cursor.js": "./dist/cursor.js"
+    "./cursor.js": "./dist/cursor.js",
+    "./worktree.js": "./dist/worktree.js"
   },
   "dependencies": {
     "@foundry/core": "0.1.0",

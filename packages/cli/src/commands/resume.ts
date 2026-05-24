@@ -11,6 +11,7 @@ import {
   printPlanCompleteBanner,
   resumePlanFromCheckpoint,
 } from '@foundry/planner/plan/orchestrate.js';
+import { resumeBuildFromCheckpoint, handleBuildError } from '@foundry/planner/build/orchestrate.js';
 
 export function runResume(args: string[]): void {
   const projectRoot = process.cwd();
@@ -42,6 +43,17 @@ export function runResume(args: string[]): void {
           process.exit(0);
         })
         .catch(handlePlanError);
+      return;
+    }
+
+    if (paused.run.mode === 'build' || paused.run.phase.startsWith('build_')) {
+      resumeBuildFromCheckpoint({ projectRoot, ref: paused })
+        .then((ref) => {
+          console.log('Build resumed.');
+          console.log(formatRunSummary(ref));
+          process.exit(0);
+        })
+        .catch(handleBuildError);
       return;
     }
 
