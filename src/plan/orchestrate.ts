@@ -23,7 +23,7 @@ import {
   buildSynthesisPrompt,
   DEFAULT_AUTONOMY_CONTRACT,
 } from './prompts.js';
-import { safeErrorMessage } from './secrets.js';
+import { safeErrorMessage } from '../config/secrets.js';
 import {
   createRun,
   updateRunStatus,

@@ -1,5 +1,5 @@
 import type { IssueDraft, PublishResult } from '../types/publish.js';
-import { scrubSecrets } from '../plan/secrets.js';
+import { scrubSecrets } from '../config/secrets.js';
 
 const ISSUE_HEADING = /^##\s+(?:Issue\s+)?(\d+)[:\.]?\s*(.+)$/gm;
 
