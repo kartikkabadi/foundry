@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { runDoctorChecks } from '@foundry/doctor/run.js';
-import { resolvePreflightOptions } from './preflight-options.js';
+import { isMockBuild, resolveModePreflightChecks } from '@foundry/doctor/preflight-options.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import type { BuildState, IssuePlanNode, ProofRecord } from '@foundry/core/types/build.js';
 import type { RunRef } from '@foundry/core/state/run-store.js';
@@ -43,7 +43,7 @@ export class BuildPreflightError extends Error {
 function defaultRunAgent(
   opts: Parameters<BuildWorkerDeps['runAgent']>[0],
 ): ReturnType<BuildWorkerDeps['runAgent']> {
-  if (process.env.FOUNDRY_BUILD_MOCK === '1') {
+  if (isMockBuild()) {
     return Promise.resolve(mockAgentWriteFile(opts));
   }
   return runBuildAgent({
@@ -54,7 +54,7 @@ function defaultRunAgent(
 }
 
 export function createDefaultBuildDeps(overrides: Partial<BuildDeps> = {}): BuildDeps {
-  const mockMode = process.env.FOUNDRY_BUILD_MOCK === '1';
+  const mockMode = isMockBuild();
   return {
     doctorDeps: createDefaultDeps(),
     workerDeps: {
@@ -69,7 +69,7 @@ export async function runBuildPreflight(
   projectRoot: string,
   deps: DoctorDeps,
 ): Promise<void> {
-  const report = await runDoctorChecks(deps, resolvePreflightOptions('build'));
+  const report = await runDoctorChecks(deps, resolveModePreflightChecks('build'));
 
   if (report.exitCode !== 0) {
     printDoctorReport(report, false);

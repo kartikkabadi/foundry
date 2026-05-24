@@ -5,10 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-if [ -f "$ROOT/.nvmrc" ] && command -v fnm >/dev/null 2>&1; then
-  eval "$(fnm env)"
-  fnm use >/dev/null 2>&1 || true
-fi
+# Use active Node (CI: setup-node + .nvmrc + npm rebuild sqlite3). Do not fnm-switch here —
+# switching ABI without rebuild breaks sqlite3 and flakes cursor-adapter tests.
 
 echo "==> build"
 npm run build

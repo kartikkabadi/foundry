@@ -10,7 +10,10 @@ import {
   executeBuild,
   runBuildPreflight,
 } from '@foundry/planner/build/orchestrate.js';
-import { resolvePreflightOptions } from '@foundry/planner/build/preflight-options.js';
+import {
+  mergeDoctorCheckOptions,
+  resolvePreflightOptions,
+} from '@foundry/doctor/preflight-options.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { createRun, initProject } from '@foundry/core/state/run-writer.js';
 import {
@@ -55,6 +58,24 @@ describe('foundry build preflight (V3-1)', () => {
     assert.strictEqual(resolvePreflightOptions('plan').deep, true);
     assert.strictEqual(resolvePreflightOptions('build', {}).deep, true);
     assert.strictEqual(resolvePreflightOptions('build', { FOUNDRY_BUILD_MOCK: '1' }).deep, false);
+  });
+
+  it('mergeDoctorCheckOptions applies mode policy when CLI omits --deep', () => {
+    assert.strictEqual(
+      mergeDoctorCheckOptions({ forTarget: 'build', deep: false, strict: false }).deep,
+      true,
+    );
+    assert.strictEqual(
+      mergeDoctorCheckOptions(
+        { forTarget: 'build', deep: false, strict: false },
+        { FOUNDRY_BUILD_MOCK: '1' },
+      ).deep,
+      false,
+    );
+    assert.strictEqual(
+      mergeDoctorCheckOptions({ forTarget: 'build', deep: true, strict: false }, {}).deep,
+      true,
+    );
   });
 
   it('runBuildPreflight passes with FOUNDRY_BUILD_MOCK=1 without API key', async () => {
@@ -111,7 +132,7 @@ describe('foundry build preflight (V3-1)', () => {
     await runBuildPreflight(projectRoot, mockDoctorDeps(projectRoot));
   });
 
-  it('executeBuild transitions run into build mode', async () => {
+  it('executeBuild dry-run leaves run in plan mode', async () => {
     const ref = seedApprovedBuildRun(projectRoot, '0.1.0', FIXTURE_ISSUE_PLAN);
     const result = await executeBuild({
       projectRoot,

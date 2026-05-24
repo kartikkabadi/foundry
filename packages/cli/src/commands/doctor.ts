@@ -2,6 +2,7 @@ import type { DoctorForTarget } from '@foundry/core/types/doctor.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { applyDoctorFix } from '@foundry/doctor/fix.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
+import { mergeDoctorCheckOptions } from '@foundry/doctor/preflight-options.js';
 import { computeFixModeExitCode, runDoctorChecks } from '@foundry/doctor/run.js';
 
 export interface ParsedDoctorArgs {
@@ -95,12 +96,15 @@ export async function executeDoctor(args: string[]): Promise<void> {
     console.log('');
   }
 
-  const report = await runDoctorChecks(deps, {
-    forTarget: parsed.forTarget,
-    deep: parsed.deep,
-    strict: parsed.strict,
-    composerFastExplicit: parsed.composerFastExplicit,
-  });
+  const report = await runDoctorChecks(
+    deps,
+    mergeDoctorCheckOptions({
+      forTarget: parsed.forTarget,
+      deep: parsed.deep,
+      strict: parsed.strict,
+      composerFastExplicit: parsed.composerFastExplicit,
+    }),
+  );
 
   printDoctorReport(report, parsed.json);
   process.exit(parsed.fix ? computeFixModeExitCode(report.checks) : report.exitCode);

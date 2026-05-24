@@ -64,6 +64,6 @@ Enforced by `tests/package-boundaries.test.ts`.
 
 ## CI / verification snapshot
 
-- `npm test` → 140 pass
+- `npm test` → 143 pass
 - `scripts/demo-build.sh` → uses `FOUNDRY_BUILD_MOCK=1`
 - G4 automated batch: `scripts/g4-batch-verify.sh` → appends to live verification log
