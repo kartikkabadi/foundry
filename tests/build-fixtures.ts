@@ -17,6 +17,24 @@ Blocked by:
 Only issue in plan.
 `;
 
+/** Two root issues with disjoint Paths: — one wave when parallel ≥ 2. */
+export const FIXTURE_ISSUE_PLAN_INDEPENDENT = `# Issue plan
+
+## Issue 1: Alpha
+
+Type: code
+Blocked by:
+
+Paths: src/a.ts
+
+## Issue 2: Beta
+
+Type: code
+Blocked by:
+
+Paths: src/b.ts
+`;
+
 export const FIXTURE_ISSUE_PLAN = `# Issue plan
 
 ## Issue 1: Add CLI flag
