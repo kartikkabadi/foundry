@@ -7,12 +7,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ALGORITHM_PASS_ARTIFACTS, REQUIRED_SYNTHESIS_ARTIFACTS } from '../src/plan/artifacts.js';
-import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.js';
-import { executePlan } from '../src/plan/orchestrate.js';
-import { initProject } from '../src/state/run-writer.js';
-import type { DoctorDeps } from '../src/doctor/deps.js';
-import type { CursorAdapter } from '../src/adapters/cursor.js';
+import { ALGORITHM_PASS_ARTIFACTS, REQUIRED_SYNTHESIS_ARTIFACTS } from '@foundry/planner/plan/artifacts.js';
+import { COVERAGE_SLOTS } from '@foundry/planner/plan/coverage-slots.js';
+import { executePlan } from '@foundry/planner/plan/orchestrate.js';
+import { initProject } from '@foundry/core/state/run-writer.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projectRoot = process.argv[2] ?? fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-fixture-'));
@@ -40,7 +40,7 @@ More AC.`;
 }
 
 function mockDoctorDeps(root: string): DoctorDeps {
-  const distDir = path.join(repoRoot, 'dist');
+  const distDir = path.join(repoRoot, 'packages', 'cli', 'dist');
   const cursorAdapter: CursorAdapter = {
     async smokeComposerStandard() {
       return { ok: true, message: 'fixture mock' };

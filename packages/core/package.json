@@ -1,0 +1,19 @@
+{
+  "name": "@foundry/core",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "exports": {
+    "./types/*": "./dist/types/*",
+    "./schema/*": "./dist/schema/*",
+    "./config/*": "./dist/config/*",
+    "./state/*": "./dist/state/*",
+    "./state.js": "./dist/state.js",
+    "./paths.js": "./dist/paths.js"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

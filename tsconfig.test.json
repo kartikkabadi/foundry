@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "paths": {
+      "@foundry/core/*": ["./packages/core/src/*"],
+      "@foundry/adapters/*": ["./packages/adapters/src/*"],
+      "@foundry/doctor/*": ["./packages/doctor/src/*"],
+      "@foundry/planner/*": ["./packages/planner/src/*"],
+      "@foundry/cli/*": ["./packages/cli/src/*"]
+    }
+  },
+  "include": ["tests/**/*", "scripts/**/*.ts"]
+}

@@ -23,20 +23,20 @@ echo "==> foundry init layout"
 mkdir -p "$DEMO_TMP/project"
 cd "$DEMO_TMP/project"
 git init -q
-FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" init
+FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" init
 test -f .foundry/config.toml
 test -d .foundry/runs
 echo "    OK: .foundry/config.toml + runs/ exist"
 
 echo "==> doctor --for plan (CI-safe; composer smoke skipped without --deep)"
-if FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" doctor --for plan; then
+if FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" doctor --for plan; then
   echo "    OK: doctor --for plan passed (or warn-only for missing optional deps)"
 else
   echo "    NOTE: doctor failed — expected in CI without pi/Cursor key"
 fi
 
 echo "==> doctor --fix (Foundry-owned state)"
-FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" doctor --fix --for plan
+FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" doctor --fix --for plan
 test -f .foundry/config.toml
 echo "    OK: doctor --fix idempotent on initialized project"
 
@@ -46,13 +46,13 @@ echo "    OK: all V1 plan artifacts written"
 
 echo "==> publish local drafts from fixture issue-plan"
 RUN_DIR="$(find .foundry/runs -mindepth 1 -maxdepth 1 -type d | head -1)"
-FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" publish --run-dir "$RUN_DIR"
+FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" publish --run-dir "$RUN_DIR"
 test -f "$RUN_DIR/issues/issue-01.md"
 echo "    OK: local issue drafts generated"
 
 echo "==> setup doctor loop (non-interactive exits on failures)"
 if [ -t 0 ]; then
-  FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" setup || true
+  FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" setup || true
 else
   echo "    SKIP: non-TTY (CI) — setup loop requires interactive terminal"
 fi
@@ -61,7 +61,7 @@ echo "==> live plan (requires Cursor key + pi + --deep doctor)"
 if [ -n "${CURSOR_API_KEY:-}" ] || [ -f "${HOME}/.pi/agent/auth.json" ]; then
   if [ "${FOUNDRY_DEMO_LIVE_PLAN:-}" = "1" ]; then
     IDEA='CLI that converts markdown PRDs to GitHub issues'
-    FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" plan "$IDEA"
+    FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" plan "$IDEA"
     PLAN_DIR="$(find .foundry/runs -mindepth 1 -maxdepth 1 -type d | head -1)"
     for artifact in run.json status.md intake.md research.md intent.md \
       requirements.md deletion-pass.md minimum-system.md simplification-pass.md \

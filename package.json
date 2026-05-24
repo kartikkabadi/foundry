@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "description": "Planning-first Pi setup/runtime CLI (Composer 2.5 exclusive in v1)",
   "license": "MIT",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
-    "foundry": "./dist/cli.js"
+    "foundry": "./packages/cli/bin/foundry.js"
   },
   "scripts": {
-    "dev": "tsx src/cli.ts",
-    "build": "tsc",
+    "build": "tsc -b --force",
     "postinstall": "npm run install --prefix node_modules/sqlite3 --silent 2>/dev/null || npm rebuild sqlite3 --silent 2>/dev/null || true",
-    "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "npm run build && TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test tests/*.test.ts",
+    "typecheck": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

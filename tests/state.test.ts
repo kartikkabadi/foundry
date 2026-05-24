@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import { ensureFoundryStateDir } from '../src/state.ts';
+import { ensureFoundryStateDir } from '@foundry/core/state.js';
 
 const TEST_ROOT = path.join(os.tmpdir(), 'FOUNDRY_TEST_' + process.pid + '_' + Date.now());
 

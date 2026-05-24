@@ -3,8 +3,8 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { applyDoctorFix } from '../src/doctor/fix.ts';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
+import { applyDoctorFix } from '@foundry/doctor/fix.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
 
 function mockDeps(cwd: string, env: NodeJS.ProcessEnv = {}): DoctorDeps {
   return {

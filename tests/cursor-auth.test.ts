@@ -7,9 +7,9 @@ import {
   getDefaultPiAuthPath,
   readPiCursorApiKey,
   resolveCursorApiKey,
-} from '../src/config/cursor-auth.ts';
-import { parseIssuePlan, formatLocalIssueMarkdown } from '../src/publish/issue-plan.ts';
-import { publishIssuePlan } from '../src/publish/orchestrate.ts';
+} from '@foundry/core/config/cursor-auth.js';
+import { parseIssuePlan, formatLocalIssueMarkdown } from '@foundry/planner/publish/issue-plan.js';
+import { publishIssuePlan } from '@foundry/planner/publish/orchestrate.js';
 
 describe('cursor-auth resolver', () => {
   it('prefers CURSOR_API_KEY env over Pi auth', () => {

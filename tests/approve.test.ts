@@ -9,10 +9,10 @@ import {
   approveRun,
   createRun,
   initProject,
-} from '../src/state/run-writer.ts';
+} from '@foundry/core/state/run-writer.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CLI = path.join(REPO_ROOT, 'src', 'cli.ts');
+const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');
 
 describe('foundry approve (V2-7)', () => {
   let projectRoot: string;
@@ -59,7 +59,7 @@ describe('foundry approve (V2-7)', () => {
 
     assert.throws(
       () =>
-        execSync(`npx tsx "${CLI}" build`, {
+        execSync(`node "${CLI}" build`, {
           encoding: 'utf8',
           cwd: projectRoot,
         }),
@@ -78,7 +78,7 @@ describe('foundry approve (V2-7)', () => {
       phase: 'awaiting_approval',
     });
 
-    const out = execSync(`npx tsx "${CLI}" build`, {
+    const out = execSync(`node "${CLI}" build`, {
       encoding: 'utf8',
       cwd: projectRoot,
     });
@@ -92,7 +92,7 @@ describe('foundry approve (V2-7)', () => {
       phase: 'awaiting_approval',
     });
 
-    const out = execSync(`npx tsx "${CLI}" approve`, {
+    const out = execSync(`node "${CLI}" approve`, {
       encoding: 'utf8',
       cwd: projectRoot,
     });
