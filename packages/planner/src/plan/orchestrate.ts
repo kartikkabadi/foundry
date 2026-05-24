@@ -6,7 +6,6 @@ import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import { runDoctorChecks } from '@foundry/doctor/run.js';
 import { resolveModePreflightChecks } from '@foundry/doctor/preflight-options.js';
-import { isRateLimitError } from '@foundry/adapters/agent-errors.js';
 import { createBrowserCaptureAdapter } from '@foundry/adapters/browser-capture.js';
 import { promptComposer } from '@foundry/adapters/cursor.js';
 import { LoopDetector } from '@foundry/core/loop/detection.js';
@@ -16,7 +15,6 @@ import {
   DEFAULT_BUDGET,
   resolveBudgetProfile,
 } from '@foundry/core/config/budget-profiles.js';
-import { shouldMarathonReviewPause, marathonPolicyForBudget } from '@foundry/core/marathon/policy.js';
 import type { RunBudget } from '@foundry/core/types/run.js';
 import {
   ALGORITHM_PASS_ARTIFACTS,
@@ -37,10 +35,16 @@ import {
 } from './prompts.js';
 import { safeErrorMessage } from '@foundry/core/config/secrets.js';
 import { invokeAgentWithCheckpoint } from '../agent-invoke.js';
+import {
+  assertAgentPassBudgetAvailable,
+  AgentPassBudgetExhaustedError,
+  AgentPassCheckpointError,
+  evaluateAgentPassAfterIncrement,
+  recordLoopSignal,
+} from './agent-pass-policy.js';
 import { runResearchSwarm } from './swarm.js';
 import {
   createRun,
-  pauseRun,
   updateRunStatus,
   writeRunState,
   type RunRef,
@@ -49,19 +53,7 @@ import {
 const pkgPath = join(getMonorepoRoot(import.meta.url), 'package.json');
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
 
-export class AgentPassBudgetExhaustedError extends Error {
-  constructor(message = 'Agent-pass budget exhausted; run paused at checkpoint.') {
-    super(message);
-    this.name = 'AgentPassBudgetExhaustedError';
-  }
-}
-
-export class AgentPassCheckpointError extends Error {
-  constructor(message = 'Agent-pass checkpoint interval reached; run paused for review.') {
-    super(message);
-    this.name = 'AgentPassCheckpointError';
-  }
-}
+export { AgentPassBudgetExhaustedError, AgentPassCheckpointError } from './agent-pass-policy.js';
 
 export interface PlanDeps {
   doctorDeps: DoctorDeps;
@@ -148,73 +140,21 @@ async function consumeAgentPass(
   deps: PlanDeps,
   fn: () => Promise<string>,
 ): Promise<{ ref: RunRef; result: string }> {
-  if (ref.run.agent_pass_budget.used >= ref.run.agent_pass_budget.limit) {
-    pauseRun(projectRoot, 'Agent-pass budget exhausted — resume with `foundry resume`');
-    throw new AgentPassBudgetExhaustedError();
-  }
+  assertAgentPassBudgetAvailable(ref, projectRoot);
 
   const loopDetector =
     deps.loopDetector ?? new LoopDetector({ budget: ref.run.budget });
-  const loopSignal = loopDetector.record(`${phase}:agent_pass`);
-  if (loopSignal) {
-    appendEvent(ref.runDir, {
-      type: 'loop_detected',
-      phase,
-      summary: `Loop signal: ${loopSignal.actionKey} repeated ${loopSignal.repeatCount} times (threshold ${loopSignal.threshold})`,
-      thread: 'plan.md',
-    });
-    if (loopSignal.level === 'pause') {
-      pauseRun(projectRoot, 'Loop detected — resume with `foundry resume` after review');
-      throw new AgentPassBudgetExhaustedError('Loop detected; run paused at checkpoint.');
-    }
-  }
+  recordLoopSignal(ref, projectRoot, phase, loopDetector);
 
-  try {
-    const invoked = await invokeAgentWithCheckpoint({
-      ref,
-      projectRoot,
-      phase,
-      fn,
-    });
-    const updatedRef = incrementAgentPass(invoked.ref);
-    const used = updatedRef.run.agent_pass_budget.used;
-
-    if (used >= updatedRef.run.agent_pass_budget.limit) {
-      pauseRun(projectRoot, 'Agent-pass budget exhausted — resume with `foundry resume`');
-      throw new AgentPassBudgetExhaustedError();
-    }
-
-    const profile = resolveBudgetProfile(updatedRef.run.budget);
-    if (used > 0 && used % profile.checkpoint_interval_passes === 0) {
-      pauseRun(
-        projectRoot,
-        `Checkpoint after ${used} agent passes — resume with \`foundry resume\``,
-      );
-      throw new AgentPassCheckpointError();
-    }
-
-    if (
-      updatedRef.run.budget === 'marathon' &&
-      used % profile.checkpoint_interval_passes === 0
-    ) {
-      const marathonPolicy = marathonPolicyForBudget('marathon');
-      if (marathonPolicy && shouldMarathonReviewPause(used, marathonPolicy)) {
-        pauseRun(projectRoot, 'Marathon review checkpoint — resume with `foundry resume`');
-        appendEvent(updatedRef.runDir, {
-          type: 'decision_requested',
-          phase,
-          summary: 'Marathon scheduled review pause',
-          thread: 'plan.md',
-        });
-      }
-    }
-    return { ref: updatedRef, result: invoked.result };
-  } catch (err) {
-    if (isRateLimitError(err)) {
-      throw err;
-    }
-    throw err;
-  }
+  const invoked = await invokeAgentWithCheckpoint({
+    ref,
+    projectRoot,
+    phase,
+    fn,
+  });
+  const updatedRef = incrementAgentPass(invoked.ref);
+  evaluateAgentPassAfterIncrement(updatedRef, projectRoot, phase);
+  return { ref: updatedRef, result: invoked.result };
 }
 
 async function runDoctorPreflight(deps: PlanDeps): Promise<void> {

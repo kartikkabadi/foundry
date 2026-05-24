@@ -1,41 +1,13 @@
 import { RunStateError } from './project-init.js';
+import type { RunRef } from './run-persistence.js';
+import { updateRunStatus } from './run-persistence.js';
 import {
-  type CreateRunResult,
-  type RunPersistence,
-  type RunRef,
-  createRun,
-  fileRunPersistence,
-  readRunJson,
-  statusMarkdown,
-  updateRunStatus,
-  writeRunState,
-} from './run-persistence.js';
-import {
-  type RunQuery,
-  type RunScanResult,
-  fileRunQuery,
   findActiveRun,
   findLatestAwaitingApprovalRun,
   findLatestPausedRun,
   findLatestRun,
   listRunRefs,
 } from './run-query.js';
-
-export type { CreateRunResult, RunRef, RunPersistence, RunQuery, RunScanResult };
-export {
-  createRun,
-  fileRunPersistence,
-  fileRunQuery,
-  findActiveRun,
-  findLatestAwaitingApprovalRun,
-  findLatestPausedRun,
-  findLatestRun,
-  listRunRefs,
-  readRunJson,
-  statusMarkdown,
-  updateRunStatus,
-  writeRunState,
-};
 
 export function approveRun(projectRoot: string, runId?: string): RunRef {
   const target = runId

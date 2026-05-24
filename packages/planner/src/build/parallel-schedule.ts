@@ -50,7 +50,9 @@ export function computeBuildWaves(
   const maxParallel = opts.maxParallel ?? 3;
   const completed = new Set(opts.completed ?? []);
   const ordered = topologicalOrder(nodes);
-  const remaining = new Set(ordered.map((n) => n.number));
+  const remaining = new Set(
+    ordered.map((n) => n.number).filter((num) => !completed.has(num)),
+  );
   const pathByNumber = new Map(ordered.map((n) => [n.number, issuePathKeys(n)]));
   const waves: number[][] = [];
 

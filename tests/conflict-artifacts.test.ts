@@ -27,6 +27,27 @@ describe('conflict artifacts (#37)', () => {
     assert.strictEqual(hasBlockingConflicts(runDir), false);
   });
 
+  it('resolveConflict is idempotent and sets resolved timestamp once', () => {
+    const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-conflict-resolve-'));
+    writeConflict(runDir, {
+      id: 'c3',
+      prd_section: '§1',
+      summary: 'Duplicate resolve must not corrupt status',
+      status: 'open',
+      created_at: '2026-01-01T00:00:00.000Z',
+    });
+
+    resolveConflict(runDir, 'c3');
+    const first = fs.readFileSync(path.join(runDir, 'conflicts', 'c3.md'), 'utf8');
+    assert.match(first, /\*\*Status:\*\* resolved/);
+    assert.match(first, /\*\*Resolved:\*\*/);
+    assert.doesNotMatch(first, /\*\*Status:\*\* open/);
+
+    resolveConflict(runDir, 'c3');
+    const second = fs.readFileSync(path.join(runDir, 'conflicts', 'c3.md'), 'utf8');
+    assert.strictEqual(second, first);
+  });
+
   it('conflict.md includes PRD section link', () => {
     const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-conflict-md-'));
     const filePath = writeConflict(runDir, {

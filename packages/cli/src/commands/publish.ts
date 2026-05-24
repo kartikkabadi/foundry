@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { findLatestRunIssuePlan, publishIssuePlan } from '@foundry/planner/publish/orchestrate.js';
 import { summarizePublishResult } from '@foundry/planner/publish/issue-plan.js';
 import { GateError } from '@foundry/core/gates.js';
-import { readRunJson } from '@foundry/core/state/run-store.js';
+import { readRunJson } from '@foundry/core/state/run-writer.js';
 import { safeErrorMessage } from '@foundry/core/config/secrets.js';
 
 export function parsePublishArgs(args: string[]): {

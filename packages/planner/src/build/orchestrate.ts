@@ -7,8 +7,8 @@ import { isMockBuild, resolveModePreflightChecks } from '@foundry/doctor/preflig
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import type { BuildState, IssuePlanNode, ProofRecord } from '@foundry/core/types/build.js';
 import { assertApproved, GateError } from '@foundry/core/gates.js';
-import type { RunRef } from '@foundry/core/state/run-store.js';
-import { updateRunStatus, writeRunState } from '@foundry/core/state/run-store.js';
+import type { RunRef } from '@foundry/core/state/run-writer.js';
+import { updateRunStatus, writeRunState } from '@foundry/core/state/run-writer.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import {
   depsSatisfied,
@@ -323,41 +323,36 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
     },
   };
 
-  if (parallel <= 1) {
-    while (true) {
-      const pending = nextPendingIssue(build, ordered);
-      if (!pending) {
-        break;
-      }
-      await executeWave([pending], waveCtx);
-      if (build.review_status === 'pending') {
-        break;
-      }
-    }
-  } else {
+  while (true) {
     const completed = new Set(
       build.issues.filter((i) => i.status === 'completed').map((i) => i.number),
     );
-    const waves = computeBuildWaves(nodes, { maxParallel: parallel, completed });
-    for (const wave of waves) {
-      const waveIssues = wave
-        .map((num) => byNumber.get(num))
-        .filter((node): node is IssuePlanNode => {
-          if (!node) {
-            return false;
-          }
-          const state = build.issues.find((i) => i.number === node.number);
-          return (
-            state?.status === 'pending' &&
-            !build.deferred.includes(node.number) &&
-            depsSatisfied(build, node)
-          );
-        });
+    const nextWave = computeBuildWaves(nodes, { maxParallel: parallel, completed })[0];
+    if (!nextWave?.length) {
+      break;
+    }
 
-      await executeWave(waveIssues, waveCtx);
-      if (build.review_status === 'pending') {
-        break;
-      }
+    const waveIssues = nextWave
+      .map((num) => byNumber.get(num))
+      .filter((node): node is IssuePlanNode => {
+        if (!node) {
+          return false;
+        }
+        const state = build.issues.find((i) => i.number === node.number);
+        return (
+          state?.status === 'pending' &&
+          !build.deferred.includes(node.number) &&
+          depsSatisfied(build, node)
+        );
+      });
+
+    if (waveIssues.length === 0) {
+      break;
+    }
+
+    await executeWave(waveIssues, waveCtx);
+    if (build.review_status === 'pending') {
+      break;
     }
   }
 

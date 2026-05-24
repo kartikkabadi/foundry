@@ -1,4 +1,4 @@
-import { FoundryRateLimitError, isRateLimitError } from '@foundry/adapters/agent-errors.js';
+import { isRateLimitError, RateLimitCheckpointError } from '@foundry/adapters/agent-errors.js';
 import { COMPOSER_MODEL_STANDARD } from '@foundry/adapters/foundry-agent.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import { pauseRun, writeRunState, type RunRef } from '@foundry/core/state/run-writer.js';
@@ -32,7 +32,7 @@ export async function invokeAgentWithCheckpoint(options: {
       `Composer rate limited — resume with \`foundry resume\` (model: ${modelId})`,
     );
 
-    const checkpointed = writeRunState({
+    const run = writeRunState({
       ...paused,
       run: {
         ...paused.run,
@@ -40,8 +40,6 @@ export async function invokeAgentWithCheckpoint(options: {
       },
     });
 
-    const rateErr = err as FoundryRateLimitError & { pausedRef?: typeof checkpointed };
-    rateErr.pausedRef = checkpointed;
-    throw rateErr;
+    throw new RateLimitCheckpointError({ ...paused, run }, modelId);
   }
 }

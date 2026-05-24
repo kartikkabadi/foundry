@@ -1,3 +1,4 @@
+import type { RunRef } from '@foundry/core/state/run-writer.js';
 import { COMPOSER_MODEL_STANDARD } from './foundry-agent.js';
 
 export class FoundryRateLimitError extends Error {
@@ -11,7 +12,20 @@ export class FoundryRateLimitError extends Error {
   }
 }
 
-export function isRateLimitError(err: unknown): err is FoundryRateLimitError {
+/** Rate limit after the run was paused and checkpointed to disk. */
+export class RateLimitCheckpointError extends FoundryRateLimitError {
+  readonly pausedRef: RunRef;
+
+  constructor(pausedRef: RunRef, modelId: string, message?: string) {
+    super(message ?? 'Composer rate limited (HTTP 429)', modelId);
+    this.name = 'RateLimitCheckpointError';
+    this.pausedRef = pausedRef;
+  }
+}
+
+export function isRateLimitError(
+  err: unknown,
+): err is FoundryRateLimitError | RateLimitCheckpointError {
   return err instanceof FoundryRateLimitError;
 }
 

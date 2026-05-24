@@ -11,6 +11,8 @@ export interface SwarmBranchResult {
 export interface SwarmResearchOptions {
   idea: string;
   branchCount: number;
+  /** Run branches concurrently (safe when runSwarm does not mutate shared run state). */
+  parallel?: boolean;
   runSwarm: (branchId: string, idea: string) => Promise<SwarmBranchResult>;
 }
 
@@ -18,10 +20,9 @@ export async function runResearchSwarm(
   ref: RunRef,
   options: SwarmResearchOptions,
 ): Promise<{ ref: RunRef; mergedMd: string }> {
-  const branches: SwarmBranchResult[] = [];
+  const branchIds = Array.from({ length: options.branchCount }, (_, i) => `swarm-${i + 1}`);
 
-  for (let i = 0; i < options.branchCount; i++) {
-    const branchId = `swarm-${i + 1}`;
+  const runBranch = async (branchId: string): Promise<SwarmBranchResult> => {
     appendEvent(ref.runDir, {
       type: 'agent_started',
       phase: 'swarm_research',
@@ -30,7 +31,6 @@ export async function runResearchSwarm(
     });
 
     const result = await options.runSwarm(branchId, options.idea);
-    branches.push(result);
 
     appendEvent(ref.runDir, {
       type: 'artifact_published',
@@ -39,7 +39,16 @@ export async function runResearchSwarm(
       artifact: `swarm/${branchId}.md`,
       thread: 'research.md',
     });
-  }
+
+    return result;
+  };
+
+  const branches = options.parallel
+    ? await Promise.all(branchIds.map(runBranch))
+    : await branchIds.reduce(
+        async (acc, branchId) => [...(await acc), await runBranch(branchId)],
+        Promise.resolve([] as SwarmBranchResult[]),
+      );
 
   const mergedMd = [
     '# Swarm research merge',

@@ -78,12 +78,16 @@ export function resolveConflict(runDir: string, conflictId: string): void {
   if (!existsSync(path)) {
     throw new Error(`Conflict not found: ${conflictId}`);
   }
-  const content = readFileSync(path, 'utf8').replace('**Status:** open', '**Status:** resolved');
-  const resolved = content.includes('**Resolved:**')
-    ? content
-    : content.replace(
-        '**Created:**',
-        `**Resolved:** ${new Date().toISOString()}\n**Created:**`,
-      );
-  writeFileSync(path, resolved.replace('**Status:** open', '**Status:** resolved'), 'utf8');
+  let content = readFileSync(path, 'utf8');
+  if (!content.includes('**Status:** open')) {
+    return;
+  }
+  content = content.replace('**Status:** open', '**Status:** resolved');
+  if (!content.includes('**Resolved:**')) {
+    content = content.replace(
+      '**Created:**',
+      `**Resolved:** ${new Date().toISOString()}\n**Created:**`,
+    );
+  }
+  writeFileSync(path, content, 'utf8');
 }

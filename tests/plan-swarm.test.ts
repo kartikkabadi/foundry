@@ -22,6 +22,7 @@ describe('plan swarm (#32)', () => {
     const result = await runResearchSwarm(ref, {
       idea: 'research topic',
       branchCount: 2,
+      parallel: true,
       runSwarm: async (branchId) => ({
         branchId,
         citation: `https://example.com/${branchId}`,

@@ -11,7 +11,7 @@ import {
 } from '@foundry/core/gates.js';
 import { createRun, initProject } from '@foundry/core/state/run-writer.js';
 import { publishIssuePlan } from '@foundry/planner/publish/orchestrate.js';
-import { readRunJson } from '@foundry/core/state/run-store.js';
+import { readRunJson } from '@foundry/core/state/run-writer.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');

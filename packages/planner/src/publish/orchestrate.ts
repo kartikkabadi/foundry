@@ -6,7 +6,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import type { IssueDraft, PublishDeps, PublishResult } from '@foundry/core/types/publish.js';
 import type { RunJson } from '@foundry/core/types/run.js';
 import { assertPublishAllowed } from '@foundry/core/gates.js';
-import { readRunJson } from '@foundry/core/state/run-store.js';
+import { readRunJson } from '@foundry/core/state/run-writer.js';
 import { formatLocalIssueMarkdown, parseIssuePlan } from './issue-plan.js';
 import { scrubSecrets } from '@foundry/core/config/secrets.js';
 
