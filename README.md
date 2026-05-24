@@ -21,7 +21,7 @@ export CURSOR_API_KEY="your-key"   # optional if Pi auth is configured
 
 - Never log `CURSOR_API_KEY` or echo it in CLI output
 - Never write API keys into `.foundry/` artifacts, `run.json`, or committed files
-- Doctor/plan resolve the key via `src/config/cursor-auth.ts` (env → Pi auth)
+- Doctor/plan resolve the key via `packages/core/src/config/cursor-auth.ts` (env → Pi auth)
 
 ## V1 Success Case
 
@@ -115,7 +115,9 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for Pi, Cursor, Composer,
 
 ## Current Status
 
-V1 implementation targeting full Issues #1–#8 acceptance criteria.
+**Shipped on `main`:** V1 (#1–#8), V2 (#11–#20), and V3 (#21–#30) — planning, publish, and serial build with proofs. Verified: `npm test` (156+ pass @ `0fbd325`).
+
+**Open work:** V4 (#31–#40) and V5 (#41–#50). Canonical tracker: [issues #31–#50](https://github.com/kartikkabadi/foundry/issues?q=is%3Aissue+is%3Aopen). Code↔test map: [VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md).
 
 **Repo alignment (2026-05):**
 

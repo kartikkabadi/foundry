@@ -1,7 +1,22 @@
 # Foundry Decision Log
 
 Created: 2026-05-24
-Last updated: 2026-05-24
+Last updated: 2026-05-25
+
+## Shipped vs vision
+
+Read this before implementing from sections below — some describe future work, not `main`.
+
+| Category | Shipped on `main` (verify in code + [VERIFIED_STATE.md](VERIFIED_STATE.md)) | Vision / not shipped |
+|----------|---------------------------------------------------------------------------|----------------------|
+| CLI surface | `doctor`, `setup`, `init`, `plan`, `build`, `publish`, `status`, `pause`, `resume`, `approve` | `tui`, `daemon`, `notify` (V5 #41–#50) |
+| Setup | Deterministic doctor loop (`packages/cli/src/commands/setup.ts`, max rounds) | Open-ended “agent-guided” AI setup wizard (V5-6) |
+| Models | Composer 2.5 Standard default; Fast gated in doctor/policy, not `--composer-speed` CLI | `foundry plan/build --composer-speed fast` flags |
+| Planning | Budget profiles, 10-slot intent, artifacts, approval stop | Exploration swarm (`--swarm`), team pack TOML |
+| Build | Serial + partial parallel scheduler (`--parallel`), worktrees, proofs | Full swarm orchestration, comms contracts |
+| Notifications | Terminal + `status.md` / `run.json` | Desktop/macOS/webhook adapters (V5 #43–#44) |
+
+**Evidence:** `npm test` 156/156 pass on `main` @ `0fbd325`; master plan Part A: `docs/superpowers/plans/2026-05-25-foundry-verified-master-plan.md`.
 
 ## Product Identity
 
@@ -122,7 +137,7 @@ ready | missing | permissions-needed | failed | skipped
 - `foundry doctor`, `foundry setup`, and `foundry init` can run without Composer 2.5 so they can diagnose and repair the setup.
 - There is no premium-model budget in v1 because there are no premium-model integrations in v1.
 
-## Composer Speed Policy
+## Composer Speed Policy (vision — CLI flags not shipped)
 
 - Default Composer speed: Standard.
 - Fast is not the default for any budget profile.
@@ -154,7 +169,7 @@ Canonical flow:
 idea
   -> choose budget: quick | deep | marathon
   -> 2-3 broad intake questions
-  -> exploration swarm with provenance
+  -> exploration swarm with provenance (vision — V4-2 #32)
   -> 10-question intent interview
   -> Auto Plan Mode
   -> 5-10 paragraph summary
@@ -850,7 +865,7 @@ Deferred until after v1:
 - Notifications beyond local desktop notifications.
 - Crash recovery beyond run checkpoints.
 
-## Notifications
+## Notifications (vision — adapters not shipped; terminal + run state only on `main`)
 
 Foundry v1 includes optional local notifications.
 

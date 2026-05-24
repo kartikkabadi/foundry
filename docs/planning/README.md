@@ -13,10 +13,11 @@ Files:
 - `GITHUB_ISSUE_BREAKDOWN.md` - Matt Pocock-style vertical-slice issue draft for GitHub.
 - `PUBLISHED_ISSUES.md` - published GitHub issue URLs for the v1 slices.
 - `OPEN_QUESTIONS.md` - next planning branches to resolve.
+- `VERIFIED_STATE.md` - issue → code → test → status (#1–#50).
 
 Status:
 
-- Planning only (with active small parallel steps on both repos per approved plan).
+- **Implementation on `main`:** V1–V3 shipped (#1–#30 closed); V4–V5 open (#31–#50). This folder is the planning SSOT alongside code-verified [VERIFIED_STATE.md](VERIFIED_STATE.md).
 - **First milestone achieved (alignment + docs)**: Clear separation documented + hygiene baseline started. See new "## Repo Alignment (2026-05, after user clarification)" section in DECISIONS.md.
 - **Pi Extension Pack (powerpack)** = pure guide-style + curated assets / whole Git repo (agent-feedable: "feed this repo to your agent..."). Local clone at documents/Projects/pi-composer-powerpack. Not a "run this script" — copy-paste guide + assets for polished Pi + Composer 2.5 + multi-agent.
 - **Foundry (this repo)** = rock-solid, detailed, actual multi-agent planning/build runtime (V1 spec: doctor/setup/plan/build, Composer 2.5 exclusive, artifacts, autonomy). Local clone at documents/Projects/foundry.
