@@ -14,7 +14,17 @@ export type DoctorRequiredCheckId =
   | 'composer-2.5-standard'
   | 'project-foundry-config';
 
-export type DoctorOptionalCheckId = 'git-github' | 'git-worktrees';
+export type DoctorExpandedOptionalCheckId =
+  | 'pi-runtime'
+  | 'composer-2.5-fast'
+  | 'browser-capture'
+  | 'cuadriver-computer-use'
+  | 'skills-team-packs';
+
+export type DoctorOptionalCheckId =
+  | 'git-github'
+  | 'git-worktrees'
+  | DoctorExpandedOptionalCheckId;
 
 export type DoctorCheckId = DoctorRequiredCheckId | DoctorOptionalCheckId;
 

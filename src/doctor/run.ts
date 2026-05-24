@@ -9,14 +9,19 @@ import { validateDoctorReport } from '../schema/doctor-report.js';
 import { DOCTOR_SCHEMA_VERSION } from '../types/doctor.js';
 import type { DoctorDeps } from './deps.js';
 import {
+  checkBrowserCapture,
+  checkComposer25Fast,
   checkComposer25Standard,
+  checkCuadriverComputerUse,
   checkCursorSdk,
   checkFoundryInstall,
   checkGitGithub,
   checkGitWorktrees,
   checkNodePackageManager,
   checkPiCli,
+  checkPiRuntime,
   checkProjectFoundryConfig,
+  checkSkillsTeamPacks,
   checkSystem,
 } from './checks/index.js';
 
@@ -24,6 +29,7 @@ export interface RunDoctorOptions {
   forTarget: DoctorForTarget;
   deep: boolean;
   strict: boolean;
+  composerFastExplicit?: boolean;
 }
 
 const REQUIRED_CHECK_IDS: readonly DoctorRequiredCheckId[] = [
@@ -36,7 +42,15 @@ const REQUIRED_CHECK_IDS: readonly DoctorRequiredCheckId[] = [
   'project-foundry-config',
 ] as const;
 
-const OPTIONAL_CHECK_IDS = ['git-github', 'git-worktrees'] as const;
+const OPTIONAL_CHECK_IDS = [
+  'git-github',
+  'git-worktrees',
+  'pi-runtime',
+  'composer-2.5-fast',
+  'browser-capture',
+  'cuadriver-computer-use',
+  'skills-team-packs',
+] as const;
 
 /** Checks Foundry can repair via `doctor --fix`; external deps may still fail. */
 export const FOUNDRY_OWNED_CHECK_IDS = ['system', 'foundry-install', 'project-foundry-config'] as const;
@@ -79,8 +93,9 @@ export async function runDoctorChecks(
   deps: DoctorDeps,
   options: RunDoctorOptions,
 ): Promise<DoctorReport> {
-  const { forTarget, deep, strict } = options;
+  const { forTarget, deep, strict, composerFastExplicit = false } = options;
   const includeOptional = forTarget === 'all' || forTarget === 'setup';
+  const includeExpanded = forTarget === 'all';
   const checks: DoctorCheck[] = [];
 
   try {
@@ -95,6 +110,16 @@ export async function runDoctorChecks(
     if (includeOptional) {
       checks.push(checkGitGithub(deps));
       checks.push(checkGitWorktrees(deps));
+    }
+
+    if (includeExpanded) {
+      checks.push(checkPiRuntime(deps));
+      checks.push(
+        await checkComposer25Fast(deps, { deep, explicit: composerFastExplicit }),
+      );
+      checks.push(checkBrowserCapture(deps));
+      checks.push(checkCuadriverComputerUse(deps, deep));
+      checks.push(checkSkillsTeamPacks(deps));
     }
 
     const filtered =

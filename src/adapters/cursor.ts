@@ -10,6 +10,7 @@ export interface ComposerSmokeResult {
 
 export interface CursorAdapter {
   smokeComposerStandard(options: { timeoutMs: number }): Promise<ComposerSmokeResult>;
+  smokeComposerFast(options: { timeoutMs: number }): Promise<ComposerSmokeResult>;
 }
 
 export class CursorAdapterNotImplementedError extends Error {
@@ -34,6 +35,53 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 async function loadAgent() {
   const { Agent } = await import('@cursor/sdk');
   return Agent;
+}
+
+export async function checkComposerFast(options: {
+  timeoutMs: number;
+  cwd?: string;
+  apiKey?: string;
+}): Promise<ComposerSmokeResult> {
+  const apiKey = options.apiKey ?? resolveCursorApiKey().apiKey;
+  if (!apiKey) {
+    return {
+      ok: false,
+      message: 'Cursor API key not configured (set CURSOR_API_KEY or Pi cursor auth)',
+    };
+  }
+
+  try {
+    const Agent = await loadAgent();
+    const result = await withTimeout(
+      Agent.prompt(SMOKE_PROMPT, {
+        apiKey,
+        model: { id: 'composer-2.5-fast' },
+        local: { cwd: options.cwd ?? process.cwd() },
+      }),
+      options.timeoutMs,
+      'Composer Fast smoke',
+    );
+
+    const text = scrubSecrets(result.result ?? '');
+    const passed = result.status === 'finished' && text.includes('FOUNDRY_COMPOSER_OK');
+
+    if (passed) {
+      return {
+        ok: true,
+        message: 'Composer 2.5 Fast smoke passed',
+      };
+    }
+
+    return {
+      ok: false,
+      message: `Composer Fast smoke finished with status: ${result.status}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      message: safeErrorMessage(err),
+    };
+  }
 }
 
 export async function checkComposerStandard(options: {
@@ -88,6 +136,9 @@ export function createCursorAdapter(apiKey?: string): CursorAdapter {
   return {
     smokeComposerStandard(options) {
       return checkComposerStandard({ ...options, apiKey: resolved });
+    },
+    smokeComposerFast(options) {
+      return checkComposerFast({ ...options, apiKey: resolved });
     },
   };
 }
