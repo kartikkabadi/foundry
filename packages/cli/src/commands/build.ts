@@ -1,4 +1,6 @@
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
+import { loadAutonomyProfileFromRun } from '@foundry/planner/build/autonomy.js';
+import { evaluateCreateRepoGate } from '@foundry/planner/build/create-repo-gate.js';
 import {
   executeBuild,
   handleBuildError,
@@ -8,12 +10,16 @@ export interface ParsedBuildArgs {
   dryRun: boolean;
   deferIssue?: number;
   parallel: number;
+  createRepo: boolean;
+  approveCreateRepo: boolean;
 }
 
 export function parseBuildArgs(args: string[]): ParsedBuildArgs {
   let dryRun = false;
   let deferIssue: number | undefined;
   let parallel = 1;
+  let createRepo = false;
+  let approveCreateRepo = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -30,6 +36,14 @@ export function parseBuildArgs(args: string[]): ParsedBuildArgs {
       }
       continue;
     }
+    if (arg === '--create-repo') {
+      createRepo = true;
+      continue;
+    }
+    if (arg === '--approve-create-repo') {
+      approveCreateRepo = true;
+      continue;
+    }
     if (arg === '--defer') {
       const value = args[++i];
       deferIssue = Number.parseInt(value ?? '', 10);
@@ -44,7 +58,7 @@ export function parseBuildArgs(args: string[]): ParsedBuildArgs {
     process.exit(2);
   }
 
-  return { dryRun, deferIssue, parallel };
+  return { dryRun, deferIssue, parallel, createRepo, approveCreateRepo };
 }
 
 export function runBuild(args: string[]): void {
@@ -56,6 +70,18 @@ export function runBuild(args: string[]): void {
     if (!latest) {
       console.error('foundry build: no runs found. Run `foundry plan` first.');
       process.exit(1);
+    }
+
+    if (parsed.createRepo) {
+      const profile = loadAutonomyProfileFromRun(latest.runDir);
+      const gate = evaluateCreateRepoGate(profile, {
+        explicitApproval: parsed.approveCreateRepo,
+      });
+      if (!gate.allowed) {
+        console.error(`foundry build: ${gate.reason}`);
+        process.exit(1);
+      }
+      console.log('create-repo: approved — would run gh repo create (not executed in v1 stub)');
     }
 
     if (latest.run.status !== 'approved' && latest.run.status !== 'running' && latest.run.status !== 'paused') {

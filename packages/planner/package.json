@@ -8,7 +8,8 @@
   "exports": {
     "./plan/*": "./dist/plan/*",
     "./publish/*": "./dist/publish/*",
-    "./build/*": "./dist/build/*"
+    "./build/*": "./dist/build/*",
+    "./agent-invoke.js": "./dist/agent-invoke.js"
   },
   "dependencies": {
     "@foundry/core": "0.1.0",

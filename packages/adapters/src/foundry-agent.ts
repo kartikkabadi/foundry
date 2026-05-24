@@ -2,6 +2,7 @@
 
 import { resolveCursorApiKey } from '@foundry/core/config/cursor-auth.js';
 import { safeErrorMessage, scrubSecrets } from '@foundry/core/config/secrets.js';
+import { assertComposerOnlyModel, FoundryRateLimitError, mapAgentPromptError } from './agent-errors.js';
 export const COMPOSER_MODEL_STANDARD = 'composer-2.5';
 export const COMPOSER_MODEL_FAST = 'composer-2.5-fast';
 export const COMPOSER_SMOKE_MARKER = 'FOUNDRY_COMPOSER_OK';
@@ -39,23 +40,33 @@ export class FoundryAgentClient {
     cwd: string,
     modelId: string = COMPOSER_MODEL_STANDARD,
   ): Promise<string> {
+    assertComposerOnlyModel(modelId);
+
+    if (process.env.FOUNDRY_AGENT_RATE_LIMIT === '1') {
+      throw new FoundryRateLimitError('Simulated Composer rate limit (FOUNDRY_AGENT_RATE_LIMIT=1)');
+    }
+
     const apiKey = this.resolveApiKey();
     if (!apiKey) {
       throw new Error('Cursor API key not configured (set CURSOR_API_KEY or Pi cursor auth)');
     }
 
-    const Agent = await loadAgent();
-    const result = await Agent.prompt(prompt, {
-      apiKey,
-      model: { id: modelId },
-      local: { cwd },
-    });
+    try {
+      const Agent = await loadAgent();
+      const result = await Agent.prompt(prompt, {
+        apiKey,
+        model: { id: modelId },
+        local: { cwd },
+      });
 
-    if (result.status !== 'finished') {
-      throw new Error(`Agent prompt failed with status: ${result.status}`);
+      if (result.status !== 'finished') {
+        throw new Error(`Agent prompt failed with status: ${result.status}`);
+      }
+
+      return scrubSecrets(result.result ?? '');
+    } catch (err) {
+      throw mapAgentPromptError(err, modelId);
     }
-
-    return scrubSecrets(result.result ?? '');
   }
 
   async smoke(

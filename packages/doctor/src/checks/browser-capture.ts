@@ -1,20 +1,23 @@
+import { createBrowserCaptureAdapter } from '@foundry/adapters/browser-capture.js';
 import type { DoctorCheck } from '@foundry/core/types/doctor.js';
 import type { DoctorDeps } from '../deps.js';
 
 export function checkBrowserCapture(deps: DoctorDeps): DoctorCheck {
-  const playwright = deps.exec('npx', ['playwright', '--version']);
-  if (playwright.ok) {
+  const adapter = createBrowserCaptureAdapter((cmd, args) => deps.exec(cmd, args));
+  const probe = adapter.probe();
+
+  if (probe.ok) {
     return {
       id: 'browser-capture',
       status: 'pass',
-      message: `Browser capture probe ok (${playwright.stdout || 'playwright available'})`,
+      message: probe.message,
     };
   }
 
   return {
     id: 'browser-capture',
     status: 'warn',
-    message: 'Browser capture unavailable (playwright probe failed).',
+    message: probe.message,
     repair: 'Install Playwright for reference capture, or skip browser references in plan.',
   };
 }

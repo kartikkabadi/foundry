@@ -22,6 +22,8 @@ const eventRecordSchema = z.object({
     'conflict_raised',
     'decision_requested',
     'agent_finished',
+    'handoff_published',
+    'loop_detected',
   ]),
   phase: z.string().min(1),
   summary: z.string().min(1),
