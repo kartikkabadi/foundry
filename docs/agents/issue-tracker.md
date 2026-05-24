@@ -25,15 +25,18 @@ Run `gh issue view <number> --comments`.
 
 Published issues #1–#8 with full AC live in `docs/planning/GITHUB_ISSUE_BREAKDOWN.md` (GitHub issue bodies may be truncated).
 
-## V2–V5 open work (#21–#50)
+## V2–V5 tracker (canonical #11–#50)
 
-Canonical **open** tracker for roadmap execution (V3–V5). Duplicates #51–#90 are closed; use canonical numbers only.
+Duplicates **#51–#90** are closed; use canonical numbers only.
 
-| Slice | Issues | Milestone | Doc |
-|-------|--------|-----------|-----|
-| V3 Build | [#21](https://github.com/kartikkabadi/foundry/issues/21)–[#30](https://github.com/kartikkabadi/foundry/issues/30) | V3 Build Mode | PR [#98](https://github.com/kartikkabadi/foundry/pull/98) |
-| V4 Orchestration | #31–#40 | V4 Orchestration | `docs/planning/V2-V5_GITHUB_ISSUES.md` |
-| V5 Product | #41–#50 | V5 Product Surface | `docs/planning/V2-V5_ROADMAP.md` |
+| Slice | Issues | Status on `main` |
+|-------|--------|------------------|
+| V2 | [#11](https://github.com/kartikkabadi/foundry/issues/11)–[#20](https://github.com/kartikkabadi/foundry/issues/20) | Closed — merged |
+| V3 Build | [#21](https://github.com/kartikkabadi/foundry/issues/21)–[#30](https://github.com/kartikkabadi/foundry/issues/30) | Closed on GitHub — code on `main` via PR [#98](https://github.com/kartikkabadi/foundry/pull/98); re-close with evidence after G4 production-truth |
+| V4 Orchestration | [#31](https://github.com/kartikkabadi/foundry/issues/31)–[#40](https://github.com/kartikkabadi/foundry/issues/40) | **Open** — label `blocked:g4-production-truth` until Kartik sign-off |
+| V5 Product | [#41](https://github.com/kartikkabadi/foundry/issues/41)–[#50](https://github.com/kartikkabadi/foundry/issues/50) | **Open** |
+
+**Canonical open work:** **#31–#50** only.
 
 Alignment audit (AC ↔ tests, blocked-by fixes): `docs/planning/TRACKER_ALIGNMENT_2026-05-26.md`.
 

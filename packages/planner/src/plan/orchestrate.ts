@@ -5,6 +5,7 @@ import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import { runDoctorChecks } from '@foundry/doctor/run.js';
+import { resolvePreflightOptions } from '../build/preflight-options.js';
 import { promptComposer } from '@foundry/adapters/cursor.js';
 import {
   agentPassBudgetFromProfile,
@@ -137,11 +138,7 @@ async function consumeAgentPass(
 }
 
 async function runDoctorPreflight(deps: PlanDeps): Promise<void> {
-  const report = await runDoctorChecks(deps.doctorDeps, {
-    forTarget: 'plan',
-    deep: true,
-    strict: false,
-  });
+  const report = await runDoctorChecks(deps.doctorDeps, resolvePreflightOptions('plan'));
 
   if (report.exitCode !== 0) {
     printDoctorReport(report, false);

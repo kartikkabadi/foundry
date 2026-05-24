@@ -1,6 +1,6 @@
 # Tracker alignment (2026-05-26)
 
-Canonical **open** roadmap work: GitHub issues **#21–#50** (V3–V5). **Closed on `main`:** V1 **#1–#8**, V2 **#11–#20** (published index has no **#9–#10**). Duplicates **#51–#90** remain closed.
+**PR #98 merged** (`36018f9`); G4 harness on `main` after alignment PR. **Closed on `main`:** V1 **#1–#8**, V2 **#11–#20**, V3 **#21–#30** (implementation present; GitHub closed — add evidence comments after Kartik production-truth). **Canonical open work:** **#31–#50** only. Duplicates **#51–#90** remain closed.
 
 ## Doc fixes applied
 
@@ -22,7 +22,7 @@ Canonical **open** roadmap work: GitHub issues **#21–#50** (V3–V5). **Closed
 | #29 | build resume | `build-resume.test.ts` |
 | #30 | E2E fixture | `build-fixtures.ts`, multiple build tests; **G4 live catalog** in `LIVE_VERIFICATION.md` |
 
-**Do not close #21–#30 until:** G1 + G2 + explicit `merge PR #98`, then **G3 + G4 complete** (full live log per `LIVE_VERIFICATION.md`).
+**#21–#30:** Code on `main`; optional closing comments after **G4 production-truth** sign-off (see live verification log).
 
 ## AC ↔ tests gap table (open issues)
 
@@ -31,7 +31,7 @@ Legend: **Covered** = tests or scripts exist on `main` or PR #98 branch; **Gap**
 | Issue | Milestone | AC coverage | Gap / notes |
 |-------|-----------|-------------|-------------|
 | #21–#30 | V3 | PR #98 test files | Merge + G4 live rehearsal beyond fixture CI |
-| #31 | V4-1 | — | Blocked on V3 merge |
+| #31 | V4-1 | — | Blocked on G4 production-truth + V4 Task 0 |
 | #32 | V4-2 | — | No exploration swarm tests |
 | #33–#40 | V4 | partial doctor | `pi-runtime` check only; V4-10 adapter missing |
 | #41–#50 | V5 | — | TUI/daemon/npm not started |
@@ -47,7 +47,7 @@ Legend: **Covered** = tests or scripts exist on `main` or PR #98 branch; **Gap**
 
 ## Milestone sanity
 
-- V4 (#31–#40) should carry `blocked:v3-merge` until PR #98 merged and G3+G4 complete.
+- V4 (#31–#40) should carry `blocked:g4-production-truth` until Kartik sign-off on G4 log.
 - V5 (#41–#50) blocked on V4 orchestration + Pi runtime (#40) per roadmap.
 
 ## Suggested issue comment (post-merge template)
