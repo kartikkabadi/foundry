@@ -52,8 +52,18 @@ Enforced by `tests/package-boundaries.test.ts`.
 - Dead defer branch removed
 - Proof evidence includes agent output file
 
+### Done (post-alignment PR2)
+
+- `resolvePreflightOptions` — build `deep` when real agent; skip deep when `FOUNDRY_BUILD_MOCK=1`
+- CI runs `FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh`
+- G4 scripts on `main` (PR1)
+
+### Remains before V4-1
+
+- V4 Task 0: `nextPendingIssue` + `blocked_by`, resume hardening, optional `run-store` split
+
 ## CI / verification snapshot
 
-- `npm test` → 140 pass
+- `npm test` → 143 pass
 - `scripts/demo-build.sh` → uses `FOUNDRY_BUILD_MOCK=1`
 - G4 automated batch: `scripts/g4-batch-verify.sh` → appends to live verification log

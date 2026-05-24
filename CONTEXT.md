@@ -58,15 +58,15 @@ _Avoid_: manager, lead, coordinator
 An agent executing a single issue slice in an isolated git worktree, producing proofs and stopping at review gates.
 _Avoid_: subagent, builder, implementer
 
-**Swarm**:
+**Swarm** (V4 — not implemented):
 Multiple agents exploring in parallel (e.g. research branches) whose outputs merge with provenance and citations into planning artifacts.
 _Avoid_: parallel agents, fan-out
 
-**Team pack**:
+**Team pack** (V4/V5 — not implemented):
 A TOML-specified set of agent roles, reporting lines, and comms contracts loaded at project init.
 _Avoid_: agent team, crew config
 
-**Handoff**:
+**Handoff** (V4 — partial; plan-only comms today):
 A required comms artifact published when an agent completes work assigned via `reports_to` / `must_publish` contracts.
 _Avoid_: transfer, sync doc
 
@@ -90,11 +90,11 @@ _Avoid_: permissions, safety mode
 Human-readable Run summary in `status.md` plus CLI `foundry status`, derived from `run.json` without duplicating schema logic.
 _Avoid_: progress, state display
 
-**TUI**:
+**TUI** (V5 — not implemented):
 Terminal UI that attaches to an active or background Run, rendering `run.json` and `status.md` for live monitoring.
 _Avoid_: dashboard, console UI
 
-**Daemon**:
+**Daemon** (V5 — not implemented):
 Background Foundry process holding a Run alive across terminal detach, notify-on-event, and re-attach via TUI.
 _Avoid_: background service, watcher
 

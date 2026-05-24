@@ -37,3 +37,6 @@ jobs:
 
       - name: Demo smoke (no live Composer)
         run: bash scripts/demo.sh
+
+      - name: Demo build smoke (mock Composer)
+        run: FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh

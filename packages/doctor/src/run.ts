@@ -30,6 +30,30 @@ export interface RunDoctorOptions {
   deep: boolean;
   strict: boolean;
   composerFastExplicit?: boolean;
+  /** CI/demo: relax external deps when FOUNDRY_BUILD_MOCK=1 build preflight runs without Pi/Cursor. */
+  mockBuild?: boolean;
+}
+
+const MOCK_BUILD_SKIP_IDS: readonly DoctorCheckId[] = [
+  'pi-cli',
+  'cursor-sdk',
+  'composer-2.5-standard',
+] as const;
+
+function applyMockBuildSkips(checks: DoctorCheck[]): DoctorCheck[] {
+  return checks.map((check) => {
+    if (
+      (MOCK_BUILD_SKIP_IDS as readonly string[]).includes(check.id) &&
+      check.status === 'fail'
+    ) {
+      return {
+        ...check,
+        status: 'skip',
+        message: `${check.message} (skipped: FOUNDRY_BUILD_MOCK=1)`,
+      };
+    }
+    return check;
+  });
 }
 
 const REQUIRED_CHECK_IDS: readonly DoctorRequiredCheckId[] = [
@@ -93,7 +117,8 @@ export async function runDoctorChecks(
   deps: DoctorDeps,
   options: RunDoctorOptions,
 ): Promise<DoctorReport> {
-  const { forTarget, deep, strict, composerFastExplicit = false } = options;
+  const { forTarget, deep, strict, composerFastExplicit = false, mockBuild = false } =
+    options;
   const includeOptional = forTarget === 'all' || forTarget === 'setup' || forTarget === 'build';
   const includeExpanded = forTarget === 'all';
   const checks: DoctorCheck[] = [];
@@ -122,10 +147,14 @@ export async function runDoctorChecks(
       checks.push(checkSkillsTeamPacks(deps));
     }
 
-    const filtered =
+    let filtered =
       forTarget === 'plan'
         ? checks.filter((c) => isRequiredCheck(c.id))
         : checks;
+
+    if (mockBuild && forTarget === 'build') {
+      filtered = applyMockBuildSkips(filtered);
+    }
 
     const exitCode = computeExitCode(filtered, strict);
 

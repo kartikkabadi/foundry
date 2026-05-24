@@ -42,7 +42,9 @@
 
 | Job | Today | Proposed |
 |-----|-------|----------|
-| `verify` | `npm ci`, typecheck, test, build, `demo.sh` | Keep; add `demo-build.sh` after V3 merge |
+| `verify` | `npm ci`, typecheck, test, build, `demo.sh` | `demo.sh` + `FOUNDRY_BUILD_MOCK=1 demo-build.sh` |
+
+**Build preflight policy:** `resolvePreflightOptions` — `plan` always `deep: true`; `build` uses `deep: true` unless `FOUNDRY_BUILD_MOCK=1` (CI/demo). Real `foundry build` without mock requires Composer smoke.
 | Node | `.nvmrc` (20) | Stay on 20 until slice C bump |
 | Live Composer | not in CI | optional nightly workflow |
 
