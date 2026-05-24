@@ -31,7 +31,7 @@ Legend: **Covered** = tests or scripts exist on `main` or PR #98 branch; **Gap**
 | Issue | Milestone | AC coverage | Gap / notes |
 |-------|-----------|-------------|-------------|
 | #21–#30 | V3 | PR #98 test files | Merge + G4 live rehearsal beyond fixture CI |
-| #31 | V4-1 | — | Blocked on G4 production-truth + V4 Task 0 |
+| #31 | V4-1 | partial | V4-1 parallel build on `main` (#102); label unblocked |
 | #32 | V4-2 | — | No exploration swarm tests |
 | #33–#40 | V4 | partial doctor | `pi-runtime` check only; V4-10 adapter missing |
 | #41–#50 | V5 | — | TUI/daemon/npm not started |
@@ -47,7 +47,7 @@ Legend: **Covered** = tests or scripts exist on `main` or PR #98 branch; **Gap**
 
 ## Milestone sanity
 
-- V4 (#31–#40) should carry `blocked:g4-production-truth` until Kartik sign-off on G4 log.
+- V4 (#31–#40): `blocked:g4-production-truth` removed 2026-05-25 after production-truth sign-off on G4 log.
 - V5 (#41–#50) blocked on V4 orchestration + Pi runtime (#40) per roadmap.
 
 ## Suggested issue comment (post-merge template)

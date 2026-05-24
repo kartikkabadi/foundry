@@ -33,7 +33,7 @@ Duplicates **#51–#90** are closed; use canonical numbers only.
 |-------|--------|------------------|
 | V2 | [#11](https://github.com/kartikkabadi/foundry/issues/11)–[#20](https://github.com/kartikkabadi/foundry/issues/20) | Closed — merged |
 | V3 Build | [#21](https://github.com/kartikkabadi/foundry/issues/21)–[#30](https://github.com/kartikkabadi/foundry/issues/30) | Closed on GitHub — code on `main` via PR [#98](https://github.com/kartikkabadi/foundry/pull/98); re-close with evidence after G4 production-truth |
-| V4 Orchestration | [#31](https://github.com/kartikkabadi/foundry/issues/31)–[#40](https://github.com/kartikkabadi/foundry/issues/40) | **Open** — label `blocked:g4-production-truth` until Kartik sign-off |
+| V4 Orchestration | [#31](https://github.com/kartikkabadi/foundry/issues/31)–[#40](https://github.com/kartikkabadi/foundry/issues/40) | **Open** — `blocked:g4-production-truth` removed after production-truth sign-off (`main` @ `ecaf87b`) |
 | V5 Product | [#41](https://github.com/kartikkabadi/foundry/issues/41)–[#50](https://github.com/kartikkabadi/foundry/issues/50) | **Open** |
 
 **Canonical open work:** **#31–#50** only.
