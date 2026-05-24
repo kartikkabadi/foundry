@@ -7,7 +7,11 @@ import {
   ensureWorktreeParent,
 } from '@foundry/adapters/worktree.js';
 import type { BuildIssueState, IssuePlanNode, ProofType } from '@foundry/core/types/build.js';
-import { evaluateAutonomyAction, loadAutonomyProfileFromRun } from './autonomy.js';
+import {
+  auditAutonomyEvent,
+  evaluateAutonomyAction,
+  loadAutonomyProfileFromRun,
+} from './autonomy.js';
 import { defaultProofEvidence, writeProofJson } from './proof-registry.js';
 import { enterReviewGate, approveReview } from './review.js';
 
@@ -49,6 +53,7 @@ export async function executeIssueWorker(options: {
 
   const profile = loadAutonomyProfileFromRun(runDir);
   const installDecision = evaluateAutonomyAction(profile, 'npm_install');
+  auditAutonomyEvent(runDir, installDecision);
   if (!installDecision.allowed) {
     throw new BuildWorkerError(installDecision.reason);
   }
@@ -64,6 +69,7 @@ export async function executeIssueWorker(options: {
   }
 
   const commitDecision = evaluateAutonomyAction(profile, 'git_commit');
+  auditAutonomyEvent(runDir, commitDecision);
   if (!commitDecision.allowed) {
     throw new BuildWorkerError(commitDecision.reason);
   }
