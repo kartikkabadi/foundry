@@ -2,7 +2,7 @@ import type { DoctorForTarget } from '../types/doctor.js';
 import { createDefaultDeps } from '../doctor/deps.js';
 import { applyDoctorFix } from '../doctor/fix.js';
 import { printDoctorReport } from '../doctor/report.js';
-import { runDoctorChecks } from '../doctor/run.js';
+import { computeFixModeExitCode, runDoctorChecks } from '../doctor/run.js';
 
 export interface ParsedDoctorArgs {
   forTarget: DoctorForTarget;
@@ -96,5 +96,5 @@ export async function executeDoctor(args: string[]): Promise<void> {
   });
 
   printDoctorReport(report, parsed.json);
-  process.exit(report.exitCode);
+  process.exit(parsed.fix ? computeFixModeExitCode(report.checks) : report.exitCode);
 }

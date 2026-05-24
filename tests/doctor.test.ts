@@ -13,7 +13,7 @@ import {
   checkProjectFoundryConfig,
   checkSystem,
 } from '../src/doctor/checks/index.ts';
-import { computeExitCode, runDoctorChecks } from '../src/doctor/run.ts';
+import { computeExitCode, computeFixModeExitCode, runDoctorChecks } from '../src/doctor/run.ts';
 import { formatDoctorJson, formatDoctorTable } from '../src/doctor/report.ts';
 import { DOCTOR_SCHEMA_VERSION } from '../src/types/doctor.ts';
 import type { CursorAdapter } from '../src/adapters/cursor.ts';
@@ -205,6 +205,24 @@ describe('doctor run + report', () => {
     const checks = [{ id: 'project-foundry-config' as const, status: 'warn' as const, message: 'missing' }];
     assert.strictEqual(computeExitCode(checks, false), 0);
     assert.strictEqual(computeExitCode(checks, true), 1);
+  });
+
+  it('computeFixModeExitCode ignores external dependency failures', () => {
+    const checks = [
+      { id: 'system' as const, status: 'pass' as const, message: 'ok' },
+      { id: 'foundry-install' as const, status: 'pass' as const, message: 'ok' },
+      { id: 'pi-cli' as const, status: 'fail' as const, message: 'missing' },
+      { id: 'cursor-sdk' as const, status: 'fail' as const, message: 'missing' },
+      { id: 'project-foundry-config' as const, status: 'pass' as const, message: 'ok' },
+    ];
+    assert.strictEqual(computeFixModeExitCode(checks), 0);
+    assert.strictEqual(
+      computeFixModeExitCode([
+        ...checks.slice(0, -1),
+        { id: 'project-foundry-config' as const, status: 'fail' as const, message: 'missing' },
+      ]),
+      1,
+    );
   });
 
   it('formatDoctorTable renders readable output', async () => {

@@ -37,6 +37,21 @@ const REQUIRED_CHECK_IDS: readonly DoctorRequiredCheckId[] = [
 
 const OPTIONAL_CHECK_IDS = ['git-github', 'git-worktrees'] as const;
 
+/** Checks Foundry can repair via `doctor --fix`; external deps may still fail. */
+export const FOUNDRY_OWNED_CHECK_IDS = ['system', 'foundry-install', 'project-foundry-config'] as const;
+
+export function computeFixModeExitCode(checks: DoctorCheck[]): 0 | 1 {
+  for (const check of checks) {
+    if (
+      (FOUNDRY_OWNED_CHECK_IDS as readonly string[]).includes(check.id) &&
+      check.status === 'fail'
+    ) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 export function computeExitCode(checks: DoctorCheck[], strict: boolean): 0 | 1 | 2 {
   for (const check of checks) {
     if (check.status === 'fail') {
