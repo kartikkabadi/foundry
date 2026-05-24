@@ -1,7 +1,7 @@
 /** Cursor SDK boundary (Issue #5). */
 
 import { resolveCursorApiKey } from '../config/cursor-auth.js';
-import { safeErrorMessage, scrubSecrets } from '../plan/secrets.js';
+import { safeErrorMessage, scrubSecrets } from '../config/secrets.js';
 
 export interface ComposerSmokeResult {
   ok: boolean;

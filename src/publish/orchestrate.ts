@@ -5,7 +5,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import type { IssueDraft, PublishDeps, PublishResult } from '../types/publish.js';
 import { formatLocalIssueMarkdown, parseIssuePlan } from './issue-plan.js';
-import { scrubSecrets } from '../plan/secrets.js';
+import { scrubSecrets } from '../config/secrets.js';
 
 function execGh(args: string[]): { ok: boolean; stdout: string; stderr: string } {
   try {

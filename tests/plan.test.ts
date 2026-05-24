@@ -10,7 +10,6 @@ import {
   REQUIRED_SYNTHESIS_ARTIFACTS,
 } from '../src/plan/artifacts.ts';
 import { validateIntentCoverage } from '../src/plan/coverage-slots.ts';
-import { scrubSecrets } from '../src/plan/secrets.ts';
 import { executePlan } from '../src/plan/orchestrate.ts';
 import { initProject } from '../src/state/run-writer.ts';
 import type { DoctorDeps } from '../src/doctor/deps.ts';
@@ -82,15 +81,6 @@ function mockDoctorDeps(projectRoot: string): DoctorDeps {
     cursorAdapter,
   };
 }
-
-describe('plan secrets scrubbing', () => {
-  it('scrubs CURSOR_API_KEY patterns', () => {
-    const input = 'Error: CURSOR_API_KEY=sk-secret123 failed';
-    const out = scrubSecrets(input);
-    assert.ok(!out.includes('sk-secret123'));
-    assert.ok(out.includes('[REDACTED]'));
-  });
-});
 
 describe('plan artifacts parsing', () => {
   it('parses synthesis delimiters', () => {
