@@ -17,7 +17,7 @@ const runJsonSchema = z.object({
   foundry_version: z.string().min(1),
   mode: z.enum(['plan', 'build']),
   budget: z.enum(['quick', 'deep', 'marathon']),
-  status: z.enum(['running', 'paused', 'awaiting_approval', 'complete', 'failed']),
+  status: z.enum(['running', 'paused', 'awaiting_approval', 'approved', 'complete', 'failed']),
   phase: z.enum([
     'init',
     'research',

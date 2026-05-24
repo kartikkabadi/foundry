@@ -8,6 +8,7 @@ export type RunStatus =
   | 'running'
   | 'paused'
   | 'awaiting_approval'
+  | 'approved'
   | 'complete'
   | 'failed';
 export type RunPhase =

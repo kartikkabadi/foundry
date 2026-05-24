@@ -13,6 +13,11 @@ import {
   parseRunJson,
   RunJsonValidationError,
 } from '../schema/run-json.js';
+import {
+  agentPassBudgetFromProfile,
+  DEFAULT_BUDGET,
+  resolveBudgetProfile,
+} from '../config/budget-profiles.js';
 import type { RunJson, RunStatus } from '../types/run.js';
 import { RUN_JSON_SCHEMA_VERSION } from '../types/run.js';
 import {
@@ -42,19 +47,20 @@ function defaultRunJson(
   foundryVersion: string,
   overrides: Partial<RunJson> = {},
 ): RunJson {
+  const defaultProfile = resolveBudgetProfile(DEFAULT_BUDGET);
   const now = new Date().toISOString();
   return {
     schema_version: RUN_JSON_SCHEMA_VERSION,
     run_id: runId,
     foundry_version: foundryVersion,
     mode: 'plan',
-    budget: 'deep',
+    budget: DEFAULT_BUDGET,
     status: 'running',
     phase: 'init',
     composer_speed: 'standard',
     created_at: now,
     updated_at: now,
-    agent_pass_budget: { max_active: 12, used: 0, limit: 80 },
+    agent_pass_budget: agentPassBudgetFromProfile(defaultProfile),
     artifacts: [],
     blocked_actions: [],
     next_actions: [],
@@ -294,6 +300,50 @@ export function findLatestPausedRun(projectRoot: string, runId?: string): RunRef
   }
 
   return refs[0] ?? null;
+}
+
+export function findLatestAwaitingApprovalRun(projectRoot: string, runId?: string): RunRef | null {
+  const refs = listRunRefs(projectRoot).filter(
+    (ref) => ref.run.status === 'awaiting_approval',
+  );
+
+  if (runId) {
+    return refs.find((ref) => ref.runId === runId) ?? null;
+  }
+
+  return refs[0] ?? null;
+}
+
+export function approveRun(projectRoot: string, runId?: string): RunRef {
+  const target = runId
+    ? listRunRefs(projectRoot).find((ref) => ref.runId === runId) ?? null
+    : findLatestAwaitingApprovalRun(projectRoot);
+
+  if (!target) {
+    if (runId) {
+      throw new RunStateError('NOT_FOUND', `No run found with id: ${runId}`);
+    }
+    throw new RunStateError(
+      'NOT_FOUND',
+      'No run awaiting approval. Complete `foundry plan` first.',
+    );
+  }
+
+  if (target.run.status === 'approved') {
+    return target;
+  }
+
+  if (target.run.status !== 'awaiting_approval') {
+    throw new RunStateError(
+      'NOT_FOUND',
+      `Run ${target.runId} is ${target.run.status}; only awaiting_approval runs can be approved.`,
+    );
+  }
+
+  return updateRunStatus(projectRoot, target.runId, 'approved', {
+    next_actions: ['Run `foundry build` to execute the approved plan'],
+    blocked_actions: [],
+  });
 }
 
 export function createRun(

@@ -23,4 +23,6 @@ export {
   pauseRun,
   resumeRun,
   formatRunSummary,
+  findLatestAwaitingApprovalRun,
+  approveRun,
 } from './run-store.js';
