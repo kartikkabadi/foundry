@@ -28,6 +28,9 @@ function mockDeps(cwd: string, env: NodeJS.ProcessEnv = {}): DoctorDeps {
       async smokeComposerStandard() {
         return { ok: false, message: 'mock' };
       },
+      async smokeComposerFast() {
+        return { ok: false, message: 'mock fast' };
+      },
     },
   };
 }

@@ -21,6 +21,11 @@ const doctorCheckIdSchema = z.enum([
   'project-foundry-config',
   'git-github',
   'git-worktrees',
+  'pi-runtime',
+  'composer-2.5-fast',
+  'browser-capture',
+  'cuadriver-computer-use',
+  'skills-team-packs',
 ]);
 
 const doctorReportSchema = z.object({

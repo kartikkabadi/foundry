@@ -10,6 +10,7 @@ export interface ParsedDoctorArgs {
   json: boolean;
   strict: boolean;
   fix: boolean;
+  composerFastExplicit: boolean;
 }
 
 export function parseDoctorArgs(args: string[]): ParsedDoctorArgs {
@@ -18,12 +19,17 @@ export function parseDoctorArgs(args: string[]): ParsedDoctorArgs {
   let json = false;
   let strict = false;
   let fix = false;
+  let composerFastExplicit = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg === '--deep') {
       deep = true;
+      continue;
+    }
+    if (arg === '--composer-fast') {
+      composerFastExplicit = true;
       continue;
     }
     if (arg === '--json') {
@@ -51,12 +57,12 @@ export function parseDoctorArgs(args: string[]): ParsedDoctorArgs {
 
     console.error(`Unknown doctor option: ${arg}`);
     console.error(
-      'Usage: foundry doctor [--for plan|setup|all] [--deep] [--json] [--strict] [--fix]',
+      'Usage: foundry doctor [--for plan|setup|all] [--deep] [--composer-fast] [--json] [--strict] [--fix]',
     );
     process.exit(2);
   }
 
-  return { forTarget, deep, json, strict, fix };
+  return { forTarget, deep, json, strict, fix, composerFastExplicit };
 }
 
 export function runDoctor(args: string[]): void {
@@ -93,6 +99,7 @@ export async function executeDoctor(args: string[]): Promise<void> {
     forTarget: parsed.forTarget,
     deep: parsed.deep,
     strict: parsed.strict,
+    composerFastExplicit: parsed.composerFastExplicit,
   });
 
   printDoctorReport(report, parsed.json);

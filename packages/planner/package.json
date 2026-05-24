@@ -7,7 +7,8 @@
   },
   "exports": {
     "./plan/*": "./dist/plan/*",
-    "./publish/*": "./dist/publish/*"
+    "./publish/*": "./dist/publish/*",
+    "./build/*": "./dist/build/*"
   },
   "dependencies": {
     "@foundry/core": "0.1.0",

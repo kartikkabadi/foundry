@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { scrubSecrets } from '@foundry/core/config/secrets.js';
+import { assertArtifactPathAllowed } from '@foundry/core/comms/events.js';
 
 const ARTIFACT_DELIMITER = /^---ARTIFACT:\s*(.+?)---\s*$/gm;
 
@@ -30,6 +31,7 @@ export function parseDelimitedArtifacts(raw: string): Map<string, string> {
 export const parseSynthesisArtifacts = parseDelimitedArtifacts;
 
 export function writeArtifact(runDir: string, filename: string, content: string): string {
+  assertArtifactPathAllowed(filename);
   const path = join(runDir, filename);
   writeFileSync(path, `${scrubSecrets(content).trim()}\n`, 'utf8');
   return path;

@@ -48,6 +48,9 @@ function mockDoctorDeps(projectRoot: string): DoctorDeps {
     async smokeComposerStandard() {
       return { ok: true, message: 'mock' };
     },
+    async smokeComposerFast() {
+      return { ok: true, message: 'mock fast' };
+    },
   };
 
   return {

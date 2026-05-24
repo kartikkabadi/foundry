@@ -9,6 +9,7 @@
     "./types/*": "./dist/types/*",
     "./schema/*": "./dist/schema/*",
     "./config/*": "./dist/config/*",
+    "./comms/*": "./dist/comms/*",
     "./state/*": "./dist/state/*",
     "./state.js": "./dist/state.js",
     "./paths.js": "./dist/paths.js"

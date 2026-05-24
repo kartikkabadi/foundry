@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 import { createCursorAdapter } from '@foundry/adapters/cursor.js';
@@ -25,6 +26,11 @@ export interface DoctorDeps {
   fileExists(path: string): boolean;
   resolveModule(specifier: string, fromDir?: string): boolean;
   cursorAdapter: CursorAdapter;
+  skillsDir?: string;
+}
+
+export function getDefaultSkillsDir(): string {
+  return join(homedir(), '.cursor', 'skills');
 }
 
 function execCommand(command: string, args: string[] = []): ExecResult {

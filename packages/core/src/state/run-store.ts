@@ -7,7 +7,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import {
   formatRunJsonValidationError,
   parseRunJson,
@@ -25,6 +25,7 @@ import {
   assertProjectInitialized,
   getRunsDir,
 } from './project-init.js';
+import { latestEventSummary } from '../comms/events.js';
 
 export interface CreateRunResult {
   runId: string;
@@ -96,7 +97,7 @@ interface RunScanResult {
   rawStatus?: string;
 }
 
-export function statusMarkdown(run: RunJson): string {
+export function statusMarkdown(run: RunJson, runDir?: string): string {
   const lines = [
     '# Run status',
     '',
@@ -108,6 +109,13 @@ export function statusMarkdown(run: RunJson): string {
     `- **Composer speed:** ${run.composer_speed}`,
     `- **Updated:** ${run.updated_at}`,
   ];
+
+  if (runDir) {
+    const eventSummary = latestEventSummary(runDir);
+    if (eventSummary) {
+      lines.push(`- **Latest event:** ${eventSummary}`);
+    }
+  }
 
   if (run.next_actions.length > 0) {
     lines.push('', '## Next actions', '');
@@ -144,8 +152,9 @@ export function readRunJson(runJsonPath: string): RunJson {
 
 export function writeRunState(runRef: Pick<RunRef, 'runJsonPath' | 'statusMdPath' | 'run'>): RunJson {
   const run: RunJson = { ...runRef.run, updated_at: new Date().toISOString() };
+  const runDir = dirname(runRef.runJsonPath);
   writeFileSync(runRef.runJsonPath, `${JSON.stringify(run, null, 2)}\n`, 'utf8');
-  writeFileSync(runRef.statusMdPath, statusMarkdown(run), 'utf8');
+  writeFileSync(runRef.statusMdPath, statusMarkdown(run, runDir), 'utf8');
   return run;
 }
 

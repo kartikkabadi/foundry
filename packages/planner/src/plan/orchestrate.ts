@@ -30,6 +30,7 @@ import {
   DEFAULT_AUTONOMY_CONTRACT,
 } from './prompts.js';
 import { safeErrorMessage } from '@foundry/core/config/secrets.js';
+import { appendEvent, appendThreadHandoff } from '@foundry/core/comms/events.js';
 import {
   createRun,
   pauseRun,
@@ -150,6 +151,41 @@ async function runDoctorPreflight(deps: PlanDeps): Promise<void> {
   }
 }
 
+function logArtifactPublished(ref: RunRef, phase: string, filename: string): void {
+  appendEvent(ref.runDir, {
+    type: 'artifact_published',
+    phase,
+    summary: `Published ${filename}`,
+    artifact: filename,
+    thread: 'plan.md',
+  });
+  appendThreadHandoff(
+    ref.runDir,
+    'plan.md',
+    filename,
+    `Handoff: ${filename} ready for review.`,
+  );
+}
+
+function startPhase(ref: RunRef, phase: string, summary: string): void {
+  appendEvent(ref.runDir, {
+    type: 'agent_started',
+    phase,
+    summary,
+    thread: 'plan.md',
+  });
+  appendThreadHandoff(ref.runDir, 'plan.md', phase, summary);
+}
+
+function finishPhase(ref: RunRef, phase: string, summary: string): void {
+  appendEvent(ref.runDir, {
+    type: 'agent_finished',
+    phase,
+    summary,
+    thread: 'plan.md',
+  });
+}
+
 async function orchestrateFromPhase(
   ref: RunRef,
   idea: string,
@@ -159,12 +195,15 @@ async function orchestrateFromPhase(
   let intakeMd = hasArtifact(ref, 'intake.md') ? readArtifact(ref, 'intake.md') : '';
 
   if (!hasArtifact(ref, 'intake.md')) {
+    startPhase(ref, 'intake', 'Collecting intake answers');
     const intake = await collectIntake(idea, {
       isTTY: deps.isTTY,
       cannedAnswers: deps.cannedIntakeAnswers,
     });
     intakeMd = formatIntakeMarkdown(intake.idea, intake.answers);
     writeArtifact(ref.runDir, 'intake.md', intakeMd);
+    logArtifactPublished(ref, 'intake', 'intake.md');
+    finishPhase(ref, 'intake', 'Intake complete');
     ref = updateRunPhase(ref, 'research', ['intake.md']);
   } else if (ref.run.phase === 'init') {
     ref = updateRunPhase(ref, 'research', ['intake.md']);
@@ -174,12 +213,15 @@ async function orchestrateFromPhase(
 
   if (!hasArtifact(ref, 'research.md')) {
     console.log('\nResearching…');
+    startPhase(ref, 'research', 'Running research agent pass');
     const pass = await consumeAgentPass(ref, projectRoot, () =>
       deps.promptAgent(buildResearchPrompt(idea, intakeMd), projectRoot),
     );
     ref = pass.ref;
     researchMd = pass.result;
     writeArtifact(ref.runDir, 'research.md', researchMd);
+    logArtifactPublished(ref, 'research', 'research.md');
+    finishPhase(ref, 'research', 'Research complete');
     ref = updateRunPhase(ref, 'interview', ['research.md']);
   } else if (
     ref.run.phase === 'research' ||
@@ -192,6 +234,7 @@ async function orchestrateFromPhase(
 
   if (!hasArtifact(ref, 'intent.md')) {
     console.log('Interview (10 coverage slots)…');
+    startPhase(ref, 'interview', 'Running intent interview');
     const pass = await consumeAgentPass(ref, projectRoot, () =>
       deps.promptAgent(buildInterviewPrompt(idea, intakeMd, researchMd), projectRoot),
     );
@@ -199,6 +242,8 @@ async function orchestrateFromPhase(
     intentRaw = pass.result;
     validateIntentCoverage(intentRaw);
     writeArtifact(ref.runDir, 'intent.md', intentRaw);
+    logArtifactPublished(ref, 'interview', 'intent.md');
+    finishPhase(ref, 'interview', 'Intent interview complete');
     ref = updateRunPhase(ref, 'algorithm_pass', ['intent.md']);
   } else if (ref.run.phase === 'interview') {
     ref = updateRunPhase(ref, 'algorithm_pass', ['intent.md']);
@@ -209,6 +254,7 @@ async function orchestrateFromPhase(
 
   if (!algorithmComplete) {
     console.log('Algorithm Pass…');
+    startPhase(ref, 'algorithm_pass', 'Running algorithm pass');
     const pass = await consumeAgentPass(ref, projectRoot, () =>
       deps.promptAgent(
         buildAlgorithmPassPrompt(idea, intakeMd, researchMd, intentRaw),
@@ -223,9 +269,11 @@ async function orchestrateFromPhase(
     for (const name of ALGORITHM_PASS_ARTIFACTS) {
       if (!hasArtifact(ref, name)) {
         writeArtifact(ref.runDir, name, algorithmParsed.get(name)!);
+        logArtifactPublished(ref, 'algorithm_pass', name);
       }
       algorithmWritten.push(name);
     }
+    finishPhase(ref, 'algorithm_pass', 'Algorithm pass complete');
     ref = updateRunPhase(ref, 'synthesis', algorithmWritten);
   } else if (ref.run.phase === 'algorithm_pass') {
     ref = updateRunPhase(ref, 'synthesis', algorithmWritten);
@@ -241,6 +289,7 @@ async function orchestrateFromPhase(
 
   if (!synthesisComplete) {
     console.log('Synthesizing planning artifacts…');
+    startPhase(ref, 'synthesis', 'Running synthesis pass');
     const pass = await consumeAgentPass(ref, projectRoot, () =>
       deps.promptAgent(
         buildSynthesisPrompt(idea, intakeMd, researchMd, intentRaw, algorithmSummary),
@@ -255,14 +304,17 @@ async function orchestrateFromPhase(
     for (const name of REQUIRED_SYNTHESIS_ARTIFACTS) {
       if (!hasArtifact(ref, name)) {
         writeArtifact(ref.runDir, name, synthesisParsed.get(name)!);
+        logArtifactPublished(ref, 'synthesis', name);
       }
       writtenArtifacts.push(name);
     }
 
     if (!hasArtifact(ref, 'autonomy-contract.md')) {
       writeArtifact(ref.runDir, 'autonomy-contract.md', DEFAULT_AUTONOMY_CONTRACT);
+      logArtifactPublished(ref, 'synthesis', 'autonomy-contract.md');
     }
     writtenArtifacts.push('autonomy-contract.md');
+    finishPhase(ref, 'synthesis', 'Plan synthesis complete — awaiting approval');
 
     ref = updateRunStatus(projectRoot, ref.runId, 'awaiting_approval', {
       phase: 'awaiting_approval',

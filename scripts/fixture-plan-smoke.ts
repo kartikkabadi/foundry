@@ -45,6 +45,9 @@ function mockDoctorDeps(root: string): DoctorDeps {
     async smokeComposerStandard() {
       return { ok: true, message: 'fixture mock' };
     },
+    async smokeComposerFast() {
+      return { ok: true, message: 'fixture mock fast' };
+    },
   };
 
   return {
