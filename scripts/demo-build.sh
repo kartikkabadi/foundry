@@ -30,8 +30,8 @@ RUN_DIR="$(find .foundry/runs -mindepth 1 -maxdepth 1 -type d | head -1)"
 RUN_DIR_ABS="$(cd "$RUN_DIR" && pwd)"
 
 echo "==> foundry approve"
-FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" approve --run-dir "$RUN_DIR" 2>/dev/null || \
-  FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" approve
+RUN_ID="$(basename "$RUN_DIR")"
+FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" approve "$RUN_ID"
 
 echo "==> foundry build --dry-run"
 FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" build --dry-run
@@ -48,10 +48,19 @@ RUN_STATUS="$(node -e "const r=JSON.parse(require('fs').readFileSync(process.arg
 test "$RUN_STATUS" = "complete" -o "$RUN_STATUS" = "running"
 echo "    OK: build run status=$RUN_STATUS"
 
-echo "==> live build (requires Cursor key + pi + --deep doctor)"
+echo "==> live build (FOUNDRY_DEMO_LIVE_BUILD=1, no FOUNDRY_BUILD_MOCK)"
 if [ -n "${CURSOR_API_KEY:-}" ] || [ -f "${HOME}/.pi/agent/auth.json" ]; then
   if [ "${FOUNDRY_DEMO_LIVE_BUILD:-}" = "1" ]; then
-    echo "    SKIP in CI: live build opt-in only"
+    unset FOUNDRY_BUILD_MOCK
+    set +e
+    FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" build
+    LIVE_CODE=$?
+    set -e
+    if [ "$LIVE_CODE" -eq 0 ]; then
+      echo "    OK: live build finished or progressed"
+    else
+      echo "    NOTE: live build exit $LIVE_CODE (may be build_review HITL pause — see g4-live-rehearsal.sh)"
+    fi
   else
     echo "    SKIP: set FOUNDRY_DEMO_LIVE_BUILD=1 for live build demo"
   fi

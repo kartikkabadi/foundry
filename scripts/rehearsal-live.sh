@@ -18,11 +18,13 @@ npm run build
 
 export FOUNDRY_DEMO_LIVE_PLAN=1
 
+CLI="$ROOT/packages/cli/bin/foundry.js"
+
 echo "==> doctor --for plan --deep (live Composer smoke)"
-node dist/cli.js doctor --for plan --deep
+node "$CLI" doctor --for plan --deep
 
 echo "==> live plan"
 IDEA='CLI that converts markdown PRDs to GitHub issues'
-node dist/cli.js plan "$IDEA"
+node "$CLI" plan "$IDEA"
 
 echo "==> rehearsal complete"
