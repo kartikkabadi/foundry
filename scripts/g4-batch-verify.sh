@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# G4 batch verification — automated tiers (no live Composer plan/build unless keys present).
+# G4 batch verification — automated tiers (Tier E + non-live Tier A).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/g4-log.sh
+source "$ROOT/scripts/g4-log.sh"
+
 CLI="$ROOT/packages/cli/bin/foundry.js"
-LOG="$ROOT/docs/superpowers/specs/2026-05-26-live-verification-log.md"
 SHA="$(git rev-parse HEAD)"
 NODE_V="$(node -v)"
 
-append_row() {
-  local tier="$1" cmd="$2" exit_code="$3" notes="$4"
-  printf '| %s | `%s` | %s | %s |\n' "$tier" "$cmd" "$exit_code" "$notes" >> "$LOG"
-}
+# Use active Node (CI: setup-node + .nvmrc + npm rebuild sqlite3). Do not fnm-switch here —
+# switching ABI without rebuild breaks sqlite3 and flakes cursor-adapter tests.
 
 run_cmd() {
   local tier="$1"
@@ -22,26 +22,15 @@ run_cmd() {
   "$@" >/tmp/g4-out.txt 2>/tmp/g4-err.txt
   local code=$?
   set -e
-  local notes="stdout+stderr captured"
+  local notes="ok"
   if [ "$code" -ne 0 ]; then
-    notes="FAIL: $(head -1 /tmp/g4-err.txt | tr '|' '/')"
+    notes="FAIL: $(head -1 /tmp/g4-err.txt | tr '|' '/' | cut -c1-120)"
   fi
-  append_row "$tier" "$label" "$code" "$notes"
-  return 0
+  g4_append_row "$tier" "$label" "$code" "$notes"
 }
 
 echo "==> G4 batch @ $SHA (Node $NODE_V)"
-
-# Ensure table section exists
-if ! grep -q '^| A |' "$LOG" 2>/dev/null; then
-  cat >> "$LOG" <<EOF
-
-## Entries (automated batch $(date -u +%Y-%m-%dT%H:%MZ))
-
-| Tier | Command | Exit | Artifacts / notes |
-|------|---------|------|-------------------|
-EOF
-fi
+g4_replace_section "Entries (automated batch)"
 
 run_cmd E "npm test" npm test
 run_cmd E "scripts/demo.sh" bash scripts/demo.sh
@@ -56,16 +45,10 @@ trap 'rm -rf "$DEMO_TMP"' EXIT
 mkdir -p "$DEMO_TMP/project"
 run_cmd A "foundry init" bash -c "cd '$DEMO_TMP/project' && FOUNDRY_HOME='$DEMO_TMP/home' node '$CLI' init"
 
-if [ -n "${CURSOR_API_KEY:-}" ] || [ -f "${HOME}/.pi/agent/auth.json" ]; then
-  echo "    Cursor auth detected — live plan/build rows require manual run per LIVE_VERIFICATION.md"
-  append_row A "foundry plan (live)" "SKIP" "auth present; run manually in isolated worktree"
-  append_row A "foundry build (live, no mock)" "SKIP" "run after approve; FOUNDRY_BUILD_MOCK unset"
-else
-  append_row A "foundry plan (live)" "SKIP" "no CURSOR_API_KEY or Pi auth"
-  append_row A "foundry build (live)" "SKIP" "no Cursor auth"
-fi
+echo "==> Live plan/build: run scripts/g4-live-rehearsal.sh when auth present"
+g4_append_row A "foundry plan (live)" "—" "see Entries (live phased)"
+g4_append_row A "foundry build (live)" "—" "see Entries (live phased)"
+g4_append_row D "pi-cursor-sdk smoke" "—" "see Entries (live phased)"
+g4_append_row C "secrets grep" "—" "see Entries (live phased)"
 
-append_row D "pi-cursor-sdk smoke" "SKIP" "manual: pi --model cursor/composer-2.5"
-append_row C "secrets grep .foundry/runs" "SKIP" "run after live plan in worktree"
-
-echo "==> G4 batch appended to $LOG"
+echo "==> G4 batch wrote $G4_LOG"
