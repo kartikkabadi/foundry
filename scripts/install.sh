@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Minimal Foundry install from GitHub (Issue #8 hackathon subset).
+# Install Foundry from GitHub (V1 installer).
 set -euo pipefail
 
 REPO="${FOUNDRY_INSTALL_REPO:-https://github.com/kartikkabadi/foundry.git}"
-BRANCH="${FOUNDRY_INSTALL_BRANCH:-hackathon/integration}"
+BRANCH="${FOUNDRY_INSTALL_BRANCH:-main}"
 INSTALL_DIR="${FOUNDRY_INSTALL_DIR:-${HOME}/.local/share/foundry}"
 
 echo "Installing Foundry from ${REPO} (${BRANCH}) into ${INSTALL_DIR}"
@@ -40,6 +40,7 @@ fi
 echo ""
 echo "Foundry installed. Verify with:"
 echo "  foundry --version"
-echo "  foundry doctor --for plan"
+echo "  foundry setup"
+echo "  foundry doctor --for plan --deep"
 echo ""
 echo "Set CURSOR_API_KEY or configure Cursor in Pi (~/.pi/agent/auth.json)."

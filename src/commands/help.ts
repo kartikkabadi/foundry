@@ -6,7 +6,7 @@ Usage: foundry <command> [options]
 Commands (v1):
   init       Initialize .foundry/ in the current repo
   doctor     Run capability checks
-  setup      Agent-guided setup
+  setup      Agent-guided setup (--recommended|--expert)
   plan       Create planning artifacts
   publish    Convert issue-plan.md to drafts (GitHub with --approve)
   status     Show current run status

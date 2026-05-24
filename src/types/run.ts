@@ -14,6 +14,7 @@ export type RunPhase =
   | 'init'
   | 'research'
   | 'interview'
+  | 'algorithm_pass'
   | 'synthesis'
   | 'awaiting_approval';
 export type ComposerSpeed = 'standard' | 'fast';

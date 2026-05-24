@@ -4,7 +4,7 @@ export const DOCTOR_SCHEMA_VERSION = '1' as const;
 
 export type DoctorCheckStatus = 'pass' | 'fail' | 'warn' | 'skip';
 
-/** Hackathon-minimum required checks for `--for plan`. */
+/** Required checks for `--for plan` (v1 minimum matrix). */
 export type DoctorRequiredCheckId =
   | 'system'
   | 'node-package-manager'

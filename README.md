@@ -1,19 +1,6 @@
 # Foundry
 
-> **Hackathon demo branch** — not V1 complete. See [Hackathon waivers](#hackathon-waivers) below.
-
 Foundry is a planning-first Pi setup/runtime that uses Cursor Composer 2.5 as the v1 model and adds deterministic setup checks, structured planning, and approval-aware multi-agent workflows.
-
-## Hackathon waivers
-
-This repo may ship a **hackathon demo subset** before full V1. Do not claim V1 complete until these are resolved:
-
-- **Algorithm Pass:** single `algorithm-pass.md` summary (not the full multi-file pass set)
-- **`foundry setup`:** stub — use `foundry doctor --for plan`; full setup is [Issue #3](https://github.com/kartikkabadi/foundry/issues/3)
-- **Issues #7–#8:** partial — `foundry publish` local drafts + approval-gated `gh issue create`; `scripts/install.sh` + CI smoke (no live Composer in CI)
-- **`pause` / `resume`:** stub or best-effort with "not in hackathon" label
-
-**Non-waivable:** Composer 2.5 Standard only (no model fallback); doctor is source of truth; plan stops before build; no secrets in artifacts; `.foundry/` gitignored.
 
 ## Environment
 
@@ -36,9 +23,7 @@ export CURSOR_API_KEY="your-key"   # optional if Pi auth is configured
 - Never write API keys into `.foundry/` artifacts, `run.json`, or committed files
 - Doctor/plan resolve the key via `src/config/cursor-auth.ts` (env → Pi auth)
 
-## V1 Goal
-
-The first public version should prove one path:
+## V1 Success Case
 
 ```text
 install Foundry
@@ -49,62 +34,15 @@ produce summary, PRD, implementation plan, issue plan, and build goal
 stop for approval
 ```
 
-## Hackathon demo (live rehearsal)
+## Quick start
 
-Canned demo idea: **"CLI that converts markdown PRDs to GitHub issues"**
-
-```bash
-export CURSOR_API_KEY="your-key"   # optional if Pi auth configured; never commit
-# or rely on Pi: ~/.pi/agent/auth.json (cursor provider)
-npm install && sfw npm install && npm rebuild sqlite3 && npm run build && npm link
-foundry init
-foundry doctor --for plan --deep    # hard gate: Composer smoke (60s timeout)
-foundry plan "CLI that converts markdown PRDs to GitHub issues"
-foundry publish                     # local issue drafts
-foundry publish --approve           # approval-gated gh issue create
-# → artifacts under .foundry/runs/<run-id>/ ; "Plan complete — approve to continue"
-```
-
-**Install from GitHub (Issue #8 subset):**
+**Install from GitHub:**
 
 ```bash
 bash scripts/install.sh
 ```
 
-CI-safe skeleton (no live Composer):
-
-```bash
-bash scripts/demo.sh
-```
-
-Live plan in demo script (optional):
-
-```bash
-export CURSOR_API_KEY="your-key"
-export FOUNDRY_DEMO_LIVE_PLAN=1
-bash scripts/demo.sh
-```
-
-**Live-only requirements:** Cursor API key (env or Pi auth), `pi` CLI, `@cursor/sdk` with rebuilt `sqlite3`, passing `foundry doctor --for plan --deep`.
-
-## Current Status
-
-Planning repository with hackathon demo on `hackathon/integration` (Issues #1–#6 subset).
-
-**Repo Alignment (2026-05):**
-
-- **Pi Extension Pack (powerpack)** = guide-style + curated assets. Local clone at `documents/Projects/pi-composer-powerpack`.
-- **Foundry (this repo)** = multi-agent planning/build runtime per full V1 spec. GitHub: 8 issues published.
-- Both active, cross-linked. See DECISIONS.md for the locked alignment section.
-
-Start here:
-
-- [V1 plan](docs/planning/V1_PLAN.md)
-- [Decision log](docs/planning/DECISIONS.md)
-- [Running spec](docs/planning/RUNNING_SPEC.md)
-- [GitHub issue breakdown](docs/planning/GITHUB_ISSUE_BREAKDOWN.md) — **full AC for issues #1–#8**
-
-## Getting started (dev)
+**Dev install:**
 
 ```bash
 sfw npm install
@@ -112,19 +50,74 @@ npm run build
 npm link   # optional — exposes `foundry` globally
 foundry --help
 foundry init
+foundry setup
+foundry doctor --for plan --deep
+foundry plan "CLI that converts markdown PRDs to GitHub issues"
+foundry publish                     # local issue drafts
+foundry publish --approve           # approval-gated gh issue create
 ```
 
-Hackathon demo rehearsal (skeleton; later phases may skip until shipped):
+Example idea: **"CLI that converts markdown PRDs to GitHub issues"**
+
+Artifacts land under `.foundry/runs/<run-id>/`:
+
+- Intake, research, intent (10 coverage slots)
+- Algorithm Pass: `requirements.md`, `deletion-pass.md`, `minimum-system.md`, `simplification-pass.md`, `acceleration-pass.md`, `automation-pass.md`, `assumptions.md`, `decisions.md`, `risks.md`
+- Planning: `summary.md`, `prd.md`, `implementation-plan.md`, `issue-plan.md`, `build-goal.md`, `autonomy-contract.md`
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `foundry init` | Create `.foundry/config.toml` and runs layout |
+| `foundry doctor` | Capability checks (source of truth) |
+| `foundry doctor --fix` | Repair Foundry-owned local state only |
+| `foundry setup` | Doctor-guided setup loop (`--recommended` default, `--expert`) |
+| `foundry plan "<idea>"` | Full planning workflow; stops at approval |
+| `foundry publish` | Convert `issue-plan.md` to drafts |
+| `foundry publish --approve` | Approval-gated GitHub issue creation |
+| `foundry status` | Show current/latest run |
+| `foundry pause` / `resume` | Pause and resume foreground runs |
+
+## Verification
 
 ```bash
-bash scripts/demo.sh
+npm run typecheck && npm test && npm run build
+bash scripts/demo.sh                    # CI-safe smoke
+FOUNDRY_DEMO_LIVE_PLAN=1 bash scripts/demo.sh   # optional live Composer
 ```
+
+## Troubleshooting
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for Pi, Cursor, Composer, GitHub, and Node/sqlite3 failures.
 
 ## Core Constraints
 
-- Composer 2.5 only in v1.
-- Composer 2.5 Standard by default.
-- Composer 2.5 Fast requires explicit per-run approval.
-- No premium model fallback in v1.
-- `doctor` is the deterministic source of truth for setup/runtime readiness.
-- Plan Mode stops for approval before Build Mode.
+- Composer 2.5 only in v1 — no model fallback
+- Composer 2.5 Standard by default; Fast requires explicit per-run approval
+- `doctor` is the deterministic source of truth
+- Plan Mode stops for approval before Build Mode
+- GitHub issue creation is approval-gated
+
+## V1 Non-Goals
+
+- Full autonomous Build Mode execution
+- Background daemon/job runner
+- Premium model integrations
+- Automatic GitHub issue creation without approval
+
+## Documentation
+
+- [V1 plan](docs/planning/V1_PLAN.md)
+- [Running spec](docs/planning/RUNNING_SPEC.md)
+- [Decision log](docs/planning/DECISIONS.md)
+- [GitHub issue breakdown](docs/planning/GITHUB_ISSUE_BREAKDOWN.md)
+
+## Current Status
+
+V1 implementation targeting full Issues #1–#8 acceptance criteria.
+
+**Repo alignment (2026-05):**
+
+- **Pi Extension Pack (powerpack)** = guide-style + curated assets
+- **Foundry (this repo)** = multi-agent planning/build runtime per V1 spec

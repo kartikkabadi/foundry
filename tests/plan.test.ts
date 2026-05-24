@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.ts';
-import { parseSynthesisArtifacts, REQUIRED_SYNTHESIS_ARTIFACTS } from '../src/plan/artifacts.ts';
+import {
+  ALGORITHM_PASS_ARTIFACTS,
+  parseDelimitedArtifacts,
+  REQUIRED_SYNTHESIS_ARTIFACTS,
+} from '../src/plan/artifacts.ts';
 import { validateIntentCoverage } from '../src/plan/coverage-slots.ts';
 import { scrubSecrets } from '../src/plan/secrets.ts';
 import { executePlan } from '../src/plan/orchestrate.ts';
@@ -18,10 +22,26 @@ function buildFakeIntent(): string {
   );
 }
 
-function buildFakeSynthesis(): string {
-  return REQUIRED_SYNTHESIS_ARTIFACTS.map(
-    (name) => `---ARTIFACT: ${name}---\n# ${name}\n\nHackathon fixture content.`,
+function buildFakeAlgorithmPass(): string {
+  return ALGORITHM_PASS_ARTIFACTS.map(
+    (name) => `---ARTIFACT: ${name}---\n# ${name}\n\nAlgorithm pass content for ${name}.`,
   ).join('\n\n');
+}
+
+function buildFakeSynthesis(): string {
+  return REQUIRED_SYNTHESIS_ARTIFACTS.map((name) => {
+    if (name === 'issue-plan.md') {
+      return `---ARTIFACT: issue-plan.md---
+## Issue 1: Demo issue
+
+Acceptance criteria for demo.
+
+## Issue 2: Second demo issue
+
+More AC.`;
+    }
+    return `---ARTIFACT: ${name}---\n# ${name}\n\nSynthesis content for ${name}.`;
+  }).join('\n\n');
 }
 
 function mockDoctorDeps(projectRoot: string): DoctorDeps {
@@ -75,9 +95,18 @@ describe('plan secrets scrubbing', () => {
 describe('plan artifacts parsing', () => {
   it('parses synthesis delimiters', () => {
     const raw = buildFakeSynthesis();
-    const parsed = parseSynthesisArtifacts(raw);
+    const parsed = parseDelimitedArtifacts(raw);
     assert.strictEqual(parsed.size, REQUIRED_SYNTHESIS_ARTIFACTS.length);
     for (const name of REQUIRED_SYNTHESIS_ARTIFACTS) {
+      assert.ok(parsed.has(name));
+    }
+  });
+
+  it('parses algorithm pass delimiters', () => {
+    const raw = buildFakeAlgorithmPass();
+    const parsed = parseDelimitedArtifacts(raw);
+    assert.strictEqual(parsed.size, ALGORITHM_PASS_ARTIFACTS.length);
+    for (const name of ALGORITHM_PASS_ARTIFACTS) {
       assert.ok(parsed.has(name));
     }
   });
@@ -100,10 +129,11 @@ describe('plan orchestration (fake planner, no network)', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  it('creates all planning artifacts and stops at awaiting_approval', async () => {
+  it('creates all V1 planning artifacts and stops at awaiting_approval', async () => {
     const fakePrompt = async (prompt: string) => {
       if (prompt.includes('research agent')) return '# Research\nFixture research.';
       if (prompt.includes('intent interview')) return buildFakeIntent();
+      if (prompt.includes('Algorithm Pass agent')) return buildFakeAlgorithmPass();
       if (prompt.includes('synthesis agent')) return buildFakeSynthesis();
       return 'ok';
     };
@@ -126,12 +156,8 @@ describe('plan orchestration (fake planner, no network)', () => {
       'intake.md',
       'research.md',
       'intent.md',
-      'summary.md',
-      'prd.md',
-      'implementation-plan.md',
-      'issue-plan.md',
-      'build-goal.md',
-      'algorithm-pass.md',
+      ...ALGORITHM_PASS_ARTIFACTS,
+      ...REQUIRED_SYNTHESIS_ARTIFACTS,
       'autonomy-contract.md',
       'run.json',
       'status.md',
