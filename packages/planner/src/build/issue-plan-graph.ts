@@ -1,4 +1,4 @@
-import type { IssuePlanNode, ProofType } from '@foundry/core/types/build.js';
+import type { BuildState, IssuePlanNode, ProofType } from '@foundry/core/types/build.js';
 import { parseIssuePlan } from '../publish/issue-plan.js';
 
 const TYPE_LINE = /^Type:\s*(code|ui|docs|config|research)\s*$/im;
@@ -41,6 +41,17 @@ export class IssuePlanGraphError extends Error {
     super(message);
     this.name = 'IssuePlanGraphError';
   }
+}
+
+/** True when every blocked_by dep is completed or listed in build.deferred. */
+export function depsSatisfied(build: BuildState, node: IssuePlanNode): boolean {
+  return node.blocked_by.every((dep) => {
+    const depState = build.issues.find((issue) => issue.number === dep);
+    if (build.deferred.includes(dep)) {
+      return true;
+    }
+    return depState?.status === 'completed';
+  });
 }
 
 export function topologicalOrder(nodes: IssuePlanNode[]): IssuePlanNode[] {

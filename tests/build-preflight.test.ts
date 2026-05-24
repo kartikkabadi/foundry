@@ -62,7 +62,7 @@ describe('foundry build preflight (V3-1)', () => {
 
   it('mergeDoctorCheckOptions applies mode policy when CLI omits --deep', () => {
     assert.strictEqual(
-      mergeDoctorCheckOptions({ forTarget: 'build', deep: false, strict: false }).deep,
+      mergeDoctorCheckOptions({ forTarget: 'build', deep: false, strict: false }, {}).deep,
       true,
     );
     assert.strictEqual(

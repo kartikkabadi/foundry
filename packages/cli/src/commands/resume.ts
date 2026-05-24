@@ -4,8 +4,7 @@ import {
   findLatestPausedRun,
   RunStateError,
 } from '@foundry/core/state/run-writer.js';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolveResumeTarget } from '@foundry/core/resume-target.js';
 import {
   handlePlanError,
   printPlanCompleteBanner,
@@ -26,12 +25,7 @@ export function runResume(args: string[]): void {
       throw new RunStateError('NO_PAUSED_RUN', 'No paused run found in this repo.');
     }
 
-    if (
-      paused.run.mode === 'plan' &&
-      (paused.run.phase !== 'init' ||
-        paused.run.artifacts.length > 0 ||
-        existsSync(join(paused.runDir, 'intake.md')))
-    ) {
+    if (resolveResumeTarget(paused.run, paused.runDir) === 'plan') {
       resumePlanFromCheckpoint({ projectRoot, ref: paused })
         .then((ref) => {
           if (ref.run.status === 'awaiting_approval') {
@@ -46,7 +40,7 @@ export function runResume(args: string[]): void {
       return;
     }
 
-    if (paused.run.mode === 'build' || paused.run.phase.startsWith('build_')) {
+    if (resolveResumeTarget(paused.run, paused.runDir) === 'build') {
       resumeBuildFromCheckpoint({ projectRoot, ref: paused })
         .then((ref) => {
           console.log('Build resumed.');

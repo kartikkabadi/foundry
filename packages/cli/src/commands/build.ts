@@ -7,16 +7,27 @@ import {
 export interface ParsedBuildArgs {
   dryRun: boolean;
   deferIssue?: number;
+  parallel: number;
 }
 
 export function parseBuildArgs(args: string[]): ParsedBuildArgs {
   let dryRun = false;
   let deferIssue: number | undefined;
+  let parallel = 1;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--dry-run') {
       dryRun = true;
+      continue;
+    }
+    if (arg === '--parallel') {
+      const value = args[++i];
+      parallel = Number.parseInt(value ?? '', 10);
+      if (Number.isNaN(parallel) || parallel < 1 || parallel > 3) {
+        console.error('foundry build: --parallel must be an integer from 1 to 3.');
+        process.exit(2);
+      }
       continue;
     }
     if (arg === '--defer') {
@@ -29,11 +40,11 @@ export function parseBuildArgs(args: string[]): ParsedBuildArgs {
       continue;
     }
     console.error(`Unknown build option: ${arg}`);
-    console.error('Usage: foundry build [--dry-run] [--defer <issue>]');
+    console.error('Usage: foundry build [--dry-run] [--defer <issue>] [--parallel N]');
     process.exit(2);
   }
 
-  return { dryRun, deferIssue };
+  return { dryRun, deferIssue, parallel };
 }
 
 export function runBuild(args: string[]): void {
@@ -59,6 +70,7 @@ export function runBuild(args: string[]): void {
       ref: latest,
       dryRun: parsed.dryRun,
       deferIssueNumber: parsed.deferIssue,
+      parallel: parsed.parallel,
     })
       .then((ref) => {
         if (parsed.dryRun) {

@@ -81,4 +81,62 @@ describe('foundry build resume (V3-9)', () => {
     assert.ok(resumed.run.build?.goal_complete);
     assert.ok(resumed.run.proofs && resumed.run.proofs.length >= 2);
   });
+
+  it('resume invokes worker only for pending issues', async () => {
+    const ref = seedApprovedBuildRun(projectRoot);
+    let agentCalls = 0;
+    const deps = mockBuildDeps(projectRoot);
+    const baseRunAgent = deps.workerDeps!.runAgent;
+    deps.workerDeps!.runAgent = async (opts) => {
+      agentCalls += 1;
+      return baseRunAgent(opts);
+    };
+
+    const paused = writeRunState({
+      ...ref,
+      run: {
+        ...ref.run,
+        mode: 'build',
+        status: 'paused',
+        phase: 'build_executing',
+        build: {
+          current_issue: 2,
+          goal_complete: false,
+          deferred: [],
+          issues: [
+            {
+              number: 1,
+              title: 'Add CLI flag',
+              type: 'code',
+              status: 'completed',
+              blocked_by: [],
+            },
+            {
+              number: 2,
+              title: 'Update docs',
+              type: 'docs',
+              status: 'pending',
+              blocked_by: [1],
+            },
+          ],
+        },
+        proofs: [
+          {
+            issue: 1,
+            type: 'code',
+            path: path.join(ref.runDir, 'proofs', 'issue-01.json'),
+            valid: true,
+          },
+        ],
+      },
+    });
+
+    await resumeBuildFromCheckpoint({
+      projectRoot,
+      ref: { ...ref, run: paused },
+      deps,
+    });
+
+    assert.strictEqual(agentCalls, 1);
+  });
 });

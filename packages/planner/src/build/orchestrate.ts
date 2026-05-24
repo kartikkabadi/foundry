@@ -10,10 +10,12 @@ import type { RunRef } from '@foundry/core/state/run-store.js';
 import { updateRunStatus, writeRunState } from '@foundry/core/state/run-store.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import {
+  depsSatisfied,
   formatExecutionOrder,
   parseIssuePlanGraph,
   topologicalOrder,
 } from './issue-plan-graph.js';
+import { computeBuildWaves } from './parallel-schedule.js';
 import { evaluateBuildGoalComplete, formatBuildSummary, deferIssue } from './defer.js';
 import { runBuildAgent } from '@foundry/adapters/build-agent.js';
 import { executeIssueWorker, mockAgentWriteFile, type BuildWorkerDeps } from './worker.js';
@@ -25,6 +27,8 @@ export interface ExecuteBuildOptions {
   ref: RunRef;
   dryRun?: boolean;
   deferIssueNumber?: number;
+  /** Max concurrent issue workers per wave (default 1 = serial). Capped at 3. */
+  parallel?: number;
   deps?: Partial<BuildDeps>;
 }
 
@@ -99,10 +103,17 @@ function initBuildState(nodes: IssuePlanNode[]): BuildState {
   };
 }
 
-function nextPendingIssue(build: BuildState, ordered: IssuePlanNode[]): IssuePlanNode | null {
+export function nextPendingIssue(
+  build: BuildState,
+  ordered: IssuePlanNode[],
+): IssuePlanNode | null {
   for (const node of ordered) {
     const state = build.issues.find((issue) => issue.number === node.number);
-    if (state?.status === 'pending' && !build.deferred.includes(node.number)) {
+    if (
+      state?.status === 'pending' &&
+      !build.deferred.includes(node.number) &&
+      depsSatisfied(build, node)
+    ) {
       return node;
     }
   }
@@ -158,24 +169,23 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
     phase: 'build_executing',
   });
 
+  const parallel = Math.min(3, Math.max(1, options.parallel ?? 1));
+
   appendEvent(ref.runDir, {
     type: 'agent_started',
     phase: 'build_executing',
-    summary: `Build started with ${ordered.length} issue(s)`,
+    summary: `Build started with ${ordered.length} issue(s)${parallel > 1 ? ` (parallel=${parallel})` : ''}`,
   });
 
-  while (true) {
-    const pending = nextPendingIssue(build, ordered);
-    if (!pending) {
-      break;
-    }
+  const byNumber = new Map(nodes.map((n) => [n.number, n]));
 
-    build = { ...build, current_issue: pending.number };
+  async function runIssueWorker(issue: IssuePlanNode): Promise<void> {
+    build = { ...build, current_issue: issue.number };
 
     const workerResult = await executeIssueWorker({
       projectRoot,
       runDir: ref.runDir,
-      issue: pending,
+      issue,
       build,
       deps: deps.workerDeps,
     });
@@ -187,7 +197,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
     appendEvent(ref.runDir, {
       type: 'artifact_published',
       phase: 'build_executing',
-      summary: `Issue #${pending.number} proof recorded`,
+      summary: `Issue #${issue.number} proof recorded`,
       artifact: workerResult.proofPath,
     });
 
@@ -199,10 +209,88 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
         phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
         build,
         proofs,
-        next_actions: [`Completed issue #${pending.number}`, formatBuildSummary(build)],
+        next_actions: [`Completed issue #${issue.number}`, formatBuildSummary(build)],
       },
     });
     currentRef = { ...currentRef, run: written };
+  }
+
+  if (parallel <= 1) {
+    while (true) {
+      const pending = nextPendingIssue(build, ordered);
+      if (!pending) {
+        break;
+      }
+      await runIssueWorker(pending);
+    }
+  } else {
+    const completed = new Set(
+      build.issues.filter((i) => i.status === 'completed').map((i) => i.number),
+    );
+    const waves = computeBuildWaves(nodes, { maxParallel: parallel, completed });
+    for (const wave of waves) {
+      const pendingNums = wave.filter((num) => {
+        const state = build.issues.find((i) => i.number === num);
+        return (
+          state?.status === 'pending' &&
+          !build.deferred.includes(num) &&
+          depsSatisfied(build, byNumber.get(num)!)
+        );
+      });
+      if (pendingNums.length === 0) {
+        continue;
+      }
+      await Promise.all(
+        pendingNums.map(async (num) => {
+          const node = byNumber.get(num);
+          if (!node) {
+            return;
+          }
+          const snapshot = structuredClone(build);
+          const workerResult = await executeIssueWorker({
+            projectRoot,
+            runDir: ref.runDir,
+            issue: node,
+            build: snapshot,
+            deps: deps.workerDeps,
+          });
+          build = {
+            ...workerResult.build,
+            issues: build.issues.map((entry) => {
+              const updated = workerResult.build.issues.find((i) => i.number === entry.number);
+              return updated && workerResult.issue.number === entry.number ? updated : entry;
+            }),
+            deferred: build.deferred,
+            current_issue: workerResult.build.current_issue,
+            review_status: workerResult.build.review_status ?? build.review_status,
+            goal_complete: build.goal_complete,
+          };
+          const proofPayload = readProofJson(workerResult.proofPath);
+          proofs = [...proofs, toProofRecord(workerResult.proofPath, proofPayload)];
+          appendEvent(ref.runDir, {
+            type: 'artifact_published',
+            phase: 'build_executing',
+            summary: `Issue #${num} proof recorded (wave)`,
+            artifact: workerResult.proofPath,
+          });
+        }),
+      );
+      const written = writeRunState({
+        ...currentRef,
+        run: {
+          ...currentRef.run,
+          mode: 'build',
+          phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
+          build,
+          proofs,
+          next_actions: [formatBuildSummary(build)],
+        },
+      });
+      currentRef = { ...currentRef, run: written };
+      if (build.review_status === 'pending') {
+        break;
+      }
+    }
   }
 
   build = evaluateBuildGoalComplete(build);
