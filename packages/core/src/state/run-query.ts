@@ -1,6 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import type { RunJson } from '../types/run.js';
 import { RunStateError, assertProjectInitialized, getRunsDir } from './project-init.js';
 import { parseStoredRunJson, type RunRef } from './run-persistence.js';
 
