@@ -5,15 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createRun, initProject } from '../src/state/run-writer.ts';
-import { parseRunJson, RunJsonValidationError } from '../src/schema/run-json.ts';
-import { parseDoctorReport, DoctorReportValidationError } from '../src/schema/doctor-report.ts';
-import { runDoctorChecks } from '../src/doctor/run.ts';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
+import { createRun, initProject } from '@foundry/core/state/run-writer.js';
+import { parseRunJson, RunJsonValidationError } from '@foundry/core/schema/run-json.js';
+import { parseDoctorReport, DoctorReportValidationError } from '@foundry/core/schema/doctor-report.js';
+import { runDoctorChecks } from '@foundry/doctor/run.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CLI = path.join(REPO_ROOT, 'src', 'cli.ts');
+const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');
 const TEST_ROOT = path.join(os.tmpdir(), 'FOUNDRY_SCHEMA_' + process.pid + '_' + Date.now());
 
 function validRunJson(overrides: Record<string, unknown> = {}) {
@@ -38,7 +38,7 @@ function validRunJson(overrides: Record<string, unknown> = {}) {
 
 function mockDoctorDeps(): DoctorDeps {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-schema-doctor-'));
-  const distDir = path.join(tmpRoot, 'dist');
+  const distDir = path.join(tmpRoot, 'packages', 'cli', 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
 
@@ -166,7 +166,7 @@ describe('foundry status/resume with malformed run.json (V2-2)', () => {
 
     assert.throws(
       () =>
-        execSync(`npx tsx "${CLI}" status`, {
+        execSync(`node "${CLI}" status`, {
           encoding: 'utf8',
           cwd: projectDir,
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -191,7 +191,7 @@ describe('foundry status/resume with malformed run.json (V2-2)', () => {
 
     assert.throws(
       () =>
-        execSync(`npx tsx "${CLI}" resume`, {
+        execSync(`node "${CLI}" resume`, {
           encoding: 'utf8',
           cwd: projectDir,
           stdio: ['pipe', 'pipe', 'pipe'],

@@ -3,22 +3,21 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   agentPassBudgetFromProfile,
   BUDGET_PROFILES,
   DEFAULT_BUDGET,
   resolveBudgetProfile,
-} from '../src/config/budget-profiles.ts';
-import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.ts';
+} from '@foundry/core/config/budget-profiles.js';
+import { COVERAGE_SLOTS } from '@foundry/planner/plan/coverage-slots.js';
 import {
   ALGORITHM_PASS_ARTIFACTS,
   REQUIRED_SYNTHESIS_ARTIFACTS,
-} from '../src/plan/artifacts.ts';
-import { executePlan, AgentPassBudgetExhaustedError } from '../src/plan/orchestrate.ts';
-import { initProject } from '../src/state/run-writer.ts';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
+} from '@foundry/planner/plan/artifacts.js';
+import { executePlan, AgentPassBudgetExhaustedError } from '@foundry/planner/plan/orchestrate.js';
+import { initProject } from '@foundry/core/state/run-writer.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
 function buildFakeIntent(): string {
   return COVERAGE_SLOTS.map((slot, i) => `## Slot ${i + 1}: ${slot}\n\nIntent for ${slot}.`).join(
@@ -44,8 +43,9 @@ Acceptance criteria for demo.`;
   }).join('\n\n');
 }
 
-function mockDoctorDeps(projectRoot: string, repoRoot: string): DoctorDeps {
-  const distDir = path.join(repoRoot, 'dist');
+function mockDoctorDeps(projectRoot: string): DoctorDeps {
+  const fakeFoundryRoot = path.join(projectRoot, '.mock-foundry-root');
+  const distDir = path.join(fakeFoundryRoot, 'packages', 'cli', 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
   fs.mkdirSync(path.join(projectRoot, '.foundry'), { recursive: true });
@@ -66,7 +66,7 @@ function mockDoctorDeps(projectRoot: string, repoRoot: string): DoctorDeps {
     nodeVersion: 'v22.0.0',
     cwd: projectRoot,
     env: { CURSOR_API_KEY: 'test-key' },
-    foundryRoot: repoRoot,
+    foundryRoot: fakeFoundryRoot,
     piAuthPath: path.join(projectRoot, 'missing-auth.json'),
     exec(command: string, args: string[] = []) {
       if (command === 'npm') return { ok: true, stdout: '10.0.0', stderr: '' };
@@ -116,7 +116,6 @@ describe('budget profiles (V2-6)', () => {
 });
 
 describe('budget enforcement in orchestrate (V2-6)', () => {
-  const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   let projectRoot: string;
 
   beforeEach(() => {
@@ -129,8 +128,8 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
   });
 
   it('agent pass budget exhaustion pauses plan at checkpoint', async () => {
-    const { createRun, writeRunState } = await import('../src/state/run-writer.ts');
-    const { resumePlanFromCheckpoint } = await import('../src/plan/orchestrate.ts');
+    const { createRun, writeRunState } = await import('@foundry/core/state/run-writer.js');
+    const { resumePlanFromCheckpoint } = await import('@foundry/planner/plan/orchestrate.js');
 
     let ref = createRun(projectRoot, '0.1.0', {
       mode: 'plan',
@@ -155,7 +154,7 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
           projectRoot,
           ref,
           deps: {
-            doctorDeps: mockDoctorDeps(projectRoot, repoRoot),
+            doctorDeps: mockDoctorDeps(projectRoot),
             promptAgent: async () => 'should not run',
             isTTY: false,
           },
@@ -181,7 +180,7 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
         projectRoot: quickRoot,
         budget: 'quick',
         deps: {
-          doctorDeps: mockDoctorDeps(quickRoot, repoRoot),
+          doctorDeps: mockDoctorDeps(quickRoot),
           promptAgent: fullPlanPrompt(),
           isTTY: false,
           cannedIntakeAnswers: ['Users', 'Problem', 'Success'],
@@ -193,7 +192,7 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
         projectRoot: marathonRoot,
         budget: 'marathon',
         deps: {
-          doctorDeps: mockDoctorDeps(marathonRoot, repoRoot),
+          doctorDeps: mockDoctorDeps(marathonRoot),
           promptAgent: fullPlanPrompt(),
           isTTY: false,
           cannedIntakeAnswers: ['Users', 'Problem', 'Success'],
@@ -215,7 +214,7 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
       projectRoot,
       budget: 'quick',
       deps: {
-        doctorDeps: mockDoctorDeps(projectRoot, repoRoot),
+        doctorDeps: mockDoctorDeps(projectRoot),
         promptAgent: fullPlanPrompt(),
         isTTY: false,
         cannedIntakeAnswers: ['Users', 'Problem', 'Success'],

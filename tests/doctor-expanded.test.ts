@@ -3,21 +3,21 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 import {
   checkBrowserCapture,
   checkComposer25Fast,
   checkCuadriverComputerUse,
   checkPiRuntime,
   checkSkillsTeamPacks,
-} from '../src/doctor/checks/index.ts';
-import { runDoctorChecks } from '../src/doctor/run.ts';
-import { parseDoctorReport } from '../src/schema/doctor-report.ts';
+} from '@foundry/doctor/checks/index.js';
+import { runDoctorChecks } from '@foundry/doctor/run.js';
+import { parseDoctorReport } from '@foundry/core/schema/doctor-report.js';
 
 function mockDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-doctor-expanded-'));
-  const distDir = path.join(tmpRoot, 'dist');
+  const distDir = path.join(tmpRoot, 'packages', 'cli', 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
 

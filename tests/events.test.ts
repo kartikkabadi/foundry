@@ -3,22 +3,22 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { executePlan } from '../src/plan/orchestrate.ts';
-import { initProject } from '../src/state/run-writer.ts';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
-import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.ts';
+import { executePlan } from '@foundry/planner/plan/orchestrate.js';
+import { initProject } from '@foundry/core/state/run-writer.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
+import { COVERAGE_SLOTS } from '@foundry/planner/plan/coverage-slots.js';
 import {
   ALGORITHM_PASS_ARTIFACTS,
   REQUIRED_SYNTHESIS_ARTIFACTS,
-} from '../src/plan/artifacts.ts';
+} from '@foundry/planner/plan/artifacts.js';
 import {
   appendEvent,
   assertArtifactPathAllowed,
   getCommsPaths,
   readEvents,
-} from '../src/comms/events.ts';
-import { parseEventRecord } from '../src/schema/events.ts';
+} from '@foundry/core/comms/events.js';
+import { parseEventRecord } from '@foundry/core/schema/events.js';
 import { readFileSync } from 'node:fs';
 
 const TEST_ROOT = path.join(os.tmpdir(), `foundry-events-${process.pid}`);
@@ -48,7 +48,7 @@ Acceptance criteria for demo.`;
 }
 
 function mockDoctorDeps(projectRoot: string): DoctorDeps {
-  const distDir = path.join(projectRoot, 'dist');
+  const distDir = path.join(projectRoot, 'packages', 'cli', 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
   fs.mkdirSync(path.join(projectRoot, '.foundry'), { recursive: true });

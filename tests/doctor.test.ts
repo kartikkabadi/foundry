@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import {
   checkComposer25Standard,
   checkCursorSdk,
@@ -12,15 +12,15 @@ import {
   checkPiCli,
   checkProjectFoundryConfig,
   checkSystem,
-} from '../src/doctor/checks/index.ts';
-import { computeExitCode, computeFixModeExitCode, runDoctorChecks } from '../src/doctor/run.ts';
-import { formatDoctorJson, formatDoctorTable } from '../src/doctor/report.ts';
-import { DOCTOR_SCHEMA_VERSION } from '../src/types/doctor.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
+} from '@foundry/doctor/checks/index.js';
+import { computeExitCode, computeFixModeExitCode, runDoctorChecks } from '@foundry/doctor/run.js';
+import { formatDoctorJson, formatDoctorTable } from '@foundry/doctor/report.js';
+import { DOCTOR_SCHEMA_VERSION } from '@foundry/core/types/doctor.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
 function mockDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-doctor-'));
-  const distDir = path.join(tmpRoot, 'dist');
+  const distDir = path.join(tmpRoot, 'packages', 'cli', 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
 

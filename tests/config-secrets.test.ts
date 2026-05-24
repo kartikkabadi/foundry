@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scrubSecrets, safeErrorMessage } from '../src/config/secrets.ts';
+import { scrubSecrets, safeErrorMessage } from '@foundry/core/config/secrets.js';
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -38,7 +38,7 @@ describe('config secrets scrubbing', () => {
 
 describe('adapter config boundary', () => {
   it('cursor adapter does not import from plan/', () => {
-    const cursorAdapterPath = path.join(repoRoot, 'src/adapters/cursor.ts');
+    const cursorAdapterPath = path.join(repoRoot, 'packages/adapters/src/cursor.ts');
     const source = fs.readFileSync(cursorAdapterPath, 'utf8');
     assert.ok(
       !source.includes("from '../plan/") && !source.includes('from "../plan/'),

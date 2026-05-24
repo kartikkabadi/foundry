@@ -15,7 +15,7 @@ import {
   readRunJson,
   resumeRun,
   statusMarkdown,
-} from '../src/state/run-writer.ts';
+} from '@foundry/core/state/run-writer.js';
 
 const TEST_ROOT = path.join(os.tmpdir(), 'FOUNDRY_RUN_WRITER_' + process.pid + '_' + Date.now());
 

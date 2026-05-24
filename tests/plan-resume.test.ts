@@ -3,21 +3,21 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.ts';
+import { COVERAGE_SLOTS } from '@foundry/planner/plan/coverage-slots.js';
 import {
   ALGORITHM_PASS_ARTIFACTS,
   REQUIRED_SYNTHESIS_ARTIFACTS,
-} from '../src/plan/artifacts.ts';
-import { resumePlanFromCheckpoint } from '../src/plan/orchestrate.ts';
+} from '@foundry/planner/plan/artifacts.js';
+import { resumePlanFromCheckpoint } from '@foundry/planner/plan/orchestrate.js';
 import {
   createRun,
   initProject,
   pauseRun,
   writeRunState,
   type RunRef,
-} from '../src/state/run-writer.ts';
-import type { DoctorDeps } from '../src/doctor/deps.ts';
-import type { CursorAdapter } from '../src/adapters/cursor.ts';
+} from '@foundry/core/state/run-writer.js';
+import type { DoctorDeps } from '@foundry/doctor/deps.js';
+import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
 function buildFakeIntent(): string {
   return COVERAGE_SLOTS.map((slot, i) => `## Slot ${i + 1}: ${slot}\n\nIntent for ${slot}.`).join(

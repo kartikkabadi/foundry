@@ -5,10 +5,10 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createRun, initProject } from '../src/state/run-writer.ts';
+import { createRun, initProject } from '@foundry/core/state/run-writer.js';
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CLI = path.join(REPO_ROOT, 'src', 'cli.ts');
+const CLI = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'foundry.js');
 
 const TEST_HOME = path.join(os.tmpdir(), 'FOUNDRY_CLI_TEST_' + process.pid + '_' + Date.now());
 
@@ -27,7 +27,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
   });
 
   it('--version prints the package version (0.1.0)', () => {
-    const out = execSync(`npx tsx "${CLI}" --version`, {
+    const out = execSync(`node "${CLI}" --version`, {
       encoding: 'utf8',
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
     }).trim();
@@ -35,7 +35,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
   });
 
   it('--help lists the v1 commands', () => {
-    const out = execSync(`npx tsx "${CLI}" --help`, {
+    const out = execSync(`node "${CLI}" --help`, {
       encoding: 'utf8',
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
     });
@@ -54,7 +54,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
   it('init creates project .foundry layout in cwd', () => {
     const projectDir = path.join(TEST_HOME, 'project-init');
     fs.mkdirSync(projectDir, { recursive: true });
-    execSync(`npx tsx "${CLI}" init`, {
+    execSync(`node "${CLI}" init`, {
       encoding: 'utf8',
       cwd: projectDir,
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
@@ -69,7 +69,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
   it('doctor prints capability table', () => {
     let out = '';
     try {
-      out = execSync(`npx tsx "${CLI}" doctor --for plan`, {
+      out = execSync(`node "${CLI}" doctor --for plan`, {
         encoding: 'utf8',
         env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME },
       });
@@ -85,7 +85,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
   it('doctor --json emits DoctorReport schema', () => {
     let out = '';
     try {
-      out = execSync(`npx tsx "${CLI}" doctor --for plan --json`, {
+      out = execSync(`node "${CLI}" doctor --for plan --json`, {
         encoding: 'utf8',
         env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME },
       });
@@ -121,7 +121,7 @@ describe('foundry CLI state commands (Issue #4)', () => {
   });
 
   it('status reports no runs when runs dir is empty', () => {
-    const out = execSync(`npx tsx "${CLI}" status`, {
+    const out = execSync(`node "${CLI}" status`, {
       encoding: 'utf8',
       cwd: projectDir,
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
@@ -132,7 +132,7 @@ describe('foundry CLI state commands (Issue #4)', () => {
   it('status summarizes latest run', () => {
     createRun(projectDir, '0.1.0', { run_id: 'demo-run', phase: 'research' });
 
-    const out = execSync(`npx tsx "${CLI}" status`, {
+    const out = execSync(`node "${CLI}" status`, {
       encoding: 'utf8',
       cwd: projectDir,
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
@@ -144,7 +144,7 @@ describe('foundry CLI state commands (Issue #4)', () => {
   it('pause and resume flip run status', () => {
     createRun(projectDir, '0.1.0', { run_id: 'flip-run' });
 
-    const pauseOut = execSync(`npx tsx "${CLI}" pause`, {
+    const pauseOut = execSync(`node "${CLI}" pause`, {
       encoding: 'utf8',
       cwd: projectDir,
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
@@ -156,7 +156,7 @@ describe('foundry CLI state commands (Issue #4)', () => {
     );
     assert.strictEqual(runJson.status, 'paused');
 
-    const resumeOut = execSync(`npx tsx "${CLI}" resume`, {
+    const resumeOut = execSync(`node "${CLI}" resume`, {
       encoding: 'utf8',
       cwd: projectDir,
       env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }
@@ -175,7 +175,7 @@ describe('foundry CLI state commands (Issue #4)', () => {
 
     assert.throws(
       () =>
-        execSync(`npx tsx "${CLI}" status`, {
+        execSync(`node "${CLI}" status`, {
           encoding: 'utf8',
           cwd: bareDir,
           env: { ...process.env, FOUNDRY_HOME: process.env.FOUNDRY_HOME }

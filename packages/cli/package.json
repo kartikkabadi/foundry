@@ -1,0 +1,20 @@
+{
+  "name": "@foundry/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "bin": {
+    "foundry": "./bin/foundry.js"
+  },
+  "exports": {
+    "./cli.js": "./dist/cli.js"
+  },
+  "dependencies": {
+    "@foundry/core": "0.1.0",
+    "@foundry/doctor": "0.1.0",
+    "@foundry/planner": "0.1.0",
+    "@foundry/adapters": "0.1.0"
+  }
+}
