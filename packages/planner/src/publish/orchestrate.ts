@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import type { IssueDraft, PublishDeps, PublishResult } from '@foundry/core/types/publish.js';
+import type { RunJson } from '@foundry/core/types/run.js';
+import { assertPublishAllowed } from '@foundry/core/gates.js';
+import { readRunJson } from '@foundry/core/state/run-store.js';
 import { formatLocalIssueMarkdown, parseIssuePlan } from './issue-plan.js';
 import { scrubSecrets } from '@foundry/core/config/secrets.js';
 
@@ -94,8 +97,14 @@ export async function publishIssuePlan(options: {
   issuePlanPath: string;
   runDir: string;
   approve: boolean;
+  run?: RunJson;
+  force?: boolean;
   deps?: Partial<PublishDeps>;
 }): Promise<PublishResult> {
+  const run =
+    options.run ?? readRunJson(join(options.runDir, 'run.json'));
+  assertPublishAllowed(run, { force: options.force });
+
   const deps = createDefaultPublishDeps(options.deps);
   const raw = scrubSecrets(readFileSync(options.issuePlanPath, 'utf8'));
   const drafts = parseIssuePlan(raw);

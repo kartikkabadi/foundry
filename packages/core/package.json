@@ -13,7 +13,8 @@
     "./state/*": "./dist/state/*",
     "./state.js": "./dist/state.js",
     "./resume-target.js": "./dist/resume-target.js",
-    "./paths.js": "./dist/paths.js"
+    "./paths.js": "./dist/paths.js",
+    "./gates.js": "./dist/gates.js"
   },
   "dependencies": {
     "zod": "^4.4.3"

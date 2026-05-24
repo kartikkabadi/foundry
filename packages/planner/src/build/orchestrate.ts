@@ -6,6 +6,7 @@ import { runDoctorChecks } from '@foundry/doctor/run.js';
 import { isMockBuild, resolveModePreflightChecks } from '@foundry/doctor/preflight-options.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import type { BuildState, IssuePlanNode, ProofRecord } from '@foundry/core/types/build.js';
+import { assertApproved, GateError } from '@foundry/core/gates.js';
 import type { RunRef } from '@foundry/core/state/run-store.js';
 import { updateRunStatus, writeRunState } from '@foundry/core/state/run-store.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
@@ -124,10 +125,13 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   const { projectRoot, ref, dryRun = false, deferIssueNumber } = options;
   const deps = createDefaultBuildDeps(options.deps);
 
-  if (ref.run.status !== 'approved' && ref.run.status !== 'running' && ref.run.status !== 'paused') {
-    throw new BuildPreflightError(
-      `Cannot build run in status "${ref.run.status}". Approve the plan first.`,
-    );
+  try {
+    assertApproved(ref.run);
+  } catch (error) {
+    if (error instanceof GateError) {
+      throw new BuildPreflightError(error.message);
+    }
+    throw error;
   }
 
   await runBuildPreflight(projectRoot, deps.doctorDeps);

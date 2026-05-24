@@ -8,6 +8,7 @@ import {
   readPiCursorApiKey,
   resolveCursorApiKey,
 } from '@foundry/core/config/cursor-auth.js';
+import { createRun, initProject } from '@foundry/core/state/run-writer.js';
 import { parseIssuePlan, formatLocalIssueMarkdown } from '@foundry/planner/publish/issue-plan.js';
 import { publishIssuePlan } from '@foundry/planner/publish/orchestrate.js';
 
@@ -77,7 +78,12 @@ More details.`;
   });
 
   it('writes local markdown fallback without gh', async () => {
-    const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-publish-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-publish-'));
+    initProject(projectRoot);
+    const { runDir } = createRun(projectRoot, '0.1.0', {
+      status: 'approved',
+      phase: 'awaiting_approval',
+    });
     const issuePlanPath = path.join(runDir, 'issue-plan.md');
     fs.writeFileSync(
       issuePlanPath,
@@ -115,6 +121,6 @@ More details.`;
     const localMd = formatLocalIssueMarkdown(parseIssuePlan(fs.readFileSync(issuePlanPath, 'utf8'))[0]!);
     assert.match(localMd, /First issue/);
 
-    fs.rmSync(runDir, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 });

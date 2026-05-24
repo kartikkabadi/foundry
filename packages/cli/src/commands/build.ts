@@ -1,3 +1,4 @@
+import { assertApproved, GateError } from '@foundry/core/gates.js';
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
 import {
   executeBuild,
@@ -58,10 +59,11 @@ export function runBuild(args: string[]): void {
       process.exit(1);
     }
 
-    if (latest.run.status !== 'approved' && latest.run.status !== 'running' && latest.run.status !== 'paused') {
-      console.error(
-        'foundry build: plan not approved. Complete `foundry plan` and run `foundry approve` first.',
-      );
+    try {
+      assertApproved(latest.run);
+    } catch (error) {
+      const message = error instanceof GateError ? error.message : String(error);
+      console.error(`foundry build: ${message}`);
       process.exit(1);
     }
 

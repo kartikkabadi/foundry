@@ -1,15 +1,27 @@
+import { existsSync } from 'node:fs';
 import { findLatestRunIssuePlan, publishIssuePlan } from '@foundry/planner/publish/orchestrate.js';
 import { summarizePublishResult } from '@foundry/planner/publish/issue-plan.js';
+import { GateError } from '@foundry/core/gates.js';
+import { readRunJson } from '@foundry/core/state/run-store.js';
 import { safeErrorMessage } from '@foundry/core/config/secrets.js';
 
-export function parsePublishArgs(args: string[]): { approve: boolean; runDir?: string } {
+export function parsePublishArgs(args: string[]): {
+  approve: boolean;
+  force: boolean;
+  runDir?: string;
+} {
   let approve = false;
+  let force = false;
   let runDir: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--approve') {
       approve = true;
+      continue;
+    }
+    if (arg === '--force') {
+      force = true;
       continue;
     }
     if (arg === '--run-dir') {
@@ -20,19 +32,27 @@ export function parsePublishArgs(args: string[]): { approve: boolean; runDir?: s
     process.exit(2);
   }
 
-  return { approve, runDir };
+  return { approve, force, runDir };
 }
 
 export function runPublish(args: string[]): void {
   executePublish(args).catch((err) => {
-    console.error(`foundry publish: ${safeErrorMessage(err)}`);
+    const message =
+      err instanceof GateError ? err.message : safeErrorMessage(err);
+    console.error(`foundry publish: ${message}`);
     process.exit(1);
   });
 }
 
 async function executePublish(args: string[]): Promise<void> {
-  const { approve, runDir: explicitRunDir } = parsePublishArgs(args);
+  const { approve, force, runDir: explicitRunDir } = parsePublishArgs(args);
   const projectRoot = process.cwd();
+
+  if (force) {
+    console.warn(
+      'Warning: --force bypasses plan approval gate. Prefer `foundry approve` before publishing.',
+    );
+  }
 
   let runDir = explicitRunDir;
   let issuePlanPath: string | undefined;
@@ -59,10 +79,19 @@ async function executePublish(args: string[]): Promise<void> {
     console.log('Local markdown drafts only (pass --approve to gate GitHub issue creation).');
   }
 
+  const runJsonPath = `${runDir}/run.json`;
+  if (!runDir || !existsSync(runJsonPath)) {
+    console.error(`foundry publish: run.json not found in ${runDir}`);
+    process.exit(1);
+  }
+  const run = readRunJson(runJsonPath);
+
   const result = await publishIssuePlan({
     issuePlanPath,
     runDir: runDir!,
     approve,
+    run,
+    force,
   });
 
   console.log('\n' + summarizePublishResult(result));
