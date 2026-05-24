@@ -4,7 +4,21 @@ Planning-first standalone TypeScript/Node CLI that configures and extends Pi int
 
 **V1 Goal (locked)**: User installs, runs `foundry setup` (verifies Pi + Composer 2.5 Standard), runs `foundry plan` on rough idea → produces useful summary.md + prd.md + implementation-plan.md + issue-plan.md + build-goal.md, stops for approval. No build without approved plan.
 
-See full locked specs in `docs/planning/` (V1_PLAN.md, RUNNING_SPEC.md, DECISIONS.md with 8 vertical-slice issues, etc.).
+See full locked specs in `docs/planning/` (V1_PLAN.md, RUNNING_SPEC.md, DECISIONS.md). Vertical-slice issues #1–#8 with full acceptance criteria: `docs/planning/GITHUB_ISSUE_BREAKDOWN.md`.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues on `kartikkabadi/foundry`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage roles mapped to repo labels (`type:afk`, `type:hitl`, etc.). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context; planning spec in `docs/planning/`. See `docs/agents/domain.md`.
 
 ## Working agreements (V1 spec + discipline)
 

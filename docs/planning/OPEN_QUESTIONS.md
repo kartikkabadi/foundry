@@ -5,34 +5,52 @@ Last updated: 2026-05-24
 
 These are the next planning branches to grill. They are not locked yet unless marked as locked in `DECISIONS.md`.
 
-## Next Immediate Question
+## LOCKED — Hackathon doctor matrix (`--for plan`)
 
-Define the exact `foundry doctor` v1 check matrix.
+**Status: locked for hackathon sprint (2026-05).** Full V1 matrix may expand later via `grill-with-docs`.
+
+`foundry doctor --for plan` must evaluate this minimum set. **Required checks fail the run (exit 1).** Optional checks warn only (exit 0 unless `--strict`).
+
+### Required (exit 1 on failure)
+
+| Check ID | How |
+|----------|-----|
+| `system` | OS/arch sanity |
+| `node-package-manager` | npm or pnpm available |
+| `foundry-install` | Node ≥20, `dist/cli.js` exists after build |
+| `pi-cli` | **Required** for hackathon "real Pi" demo narrative |
+| `cursor-sdk` | `CURSOR_API_KEY` set, `@cursor/sdk` resolves |
+| `composer-2.5-standard` | `--deep` smoke: bounded `Agent.prompt`, **60s timeout** |
+| `project-foundry-config` | `.foundry/config.toml` present (warn before init) |
+
+### Optional (warn only)
+
+| Check ID | How |
+|----------|-----|
+| `git-github` | `gh` auth + repo remote |
+| `git-worktrees` | git worktree support |
+
+### Exit codes
+
+- `0` — all required checks pass
+- `1` — one or more required checks failed
+- `2` — doctor internal error
+
+### JSON schema
+
+Frozen types: `src/types/doctor.ts`. Issue #2 ships human table + `doctor --json` emitting `DoctorReport`.
+
+### Post-hackathon
+
+Expand matrix (pi-runtime, composer-2.5-fast, browser-capture, cuadriver, skills-team-packs) via full V1 lock in DECISIONS.md.
+
+---
+
+## Next Immediate Question (post-hackathon)
+
+Refine the **full** V1 doctor matrix beyond hackathon minimum (see locked hackathon section above).
 
 The autonomy taxonomy, fresh-confirmation list, Composer-only model policy, run/resume mechanics, comms storage, conflict artifacts, user-required decision boundary, question-quality policy, and 10-slot interview are now locked in `DECISIONS.md`.
-
-Recommended next lock:
-
-Foundry v1 should have a deterministic doctor matrix with explicit status values and repair guidance for each capability.
-
-Possible check groups:
-
-```text
-system
-node-package-manager
-foundry-install
-pi-cli
-pi-runtime
-cursor-sdk
-composer-2.5-standard
-composer-2.5-fast
-github-cli
-git-worktrees
-browser-capture
-cuadriver-computer-use
-skills-team-packs
-project-foundry-config
-```
 
 ## Setup Questions
 

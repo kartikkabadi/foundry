@@ -1,0 +1,36 @@
+/** Frozen doctor JSON contract (H0). Do not change without spec review. */
+
+export const DOCTOR_SCHEMA_VERSION = '1' as const;
+
+export type DoctorCheckStatus = 'pass' | 'fail' | 'warn' | 'skip';
+
+/** Hackathon-minimum required checks for `--for plan`. */
+export type DoctorRequiredCheckId =
+  | 'system'
+  | 'node-package-manager'
+  | 'foundry-install'
+  | 'pi-cli'
+  | 'cursor-sdk'
+  | 'composer-2.5-standard'
+  | 'project-foundry-config';
+
+export type DoctorOptionalCheckId = 'git-github' | 'git-worktrees';
+
+export type DoctorCheckId = DoctorRequiredCheckId | DoctorOptionalCheckId;
+
+export interface DoctorCheck {
+  id: DoctorCheckId;
+  status: DoctorCheckStatus;
+  message: string;
+  repair?: string;
+}
+
+export type DoctorForTarget = 'plan' | 'setup' | 'all';
+
+export interface DoctorReport {
+  schemaVersion: typeof DOCTOR_SCHEMA_VERSION;
+  for: DoctorForTarget;
+  checks: DoctorCheck[];
+  exitCode: 0 | 1 | 2;
+  generatedAt: string;
+}
