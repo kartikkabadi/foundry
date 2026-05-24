@@ -42,9 +42,38 @@ produce summary, PRD, implementation plan, issue plan, and build goal
 stop for approval
 ```
 
+## Hackathon demo (live rehearsal)
+
+Canned demo idea: **"CLI that converts markdown PRDs to GitHub issues"**
+
+```bash
+export CURSOR_API_KEY="your-key"   # never commit; never appears in artifacts
+npm install && sfw npm install && npm run build && npm link
+foundry init
+foundry doctor --for plan --deep    # hard gate: Composer smoke (60s timeout)
+foundry plan "CLI that converts markdown PRDs to GitHub issues"
+# → artifacts under .foundry/runs/<run-id>/ ; "Plan complete — approve to continue"
+```
+
+CI-safe skeleton (no live Composer):
+
+```bash
+bash scripts/demo.sh
+```
+
+Live plan in demo script (optional):
+
+```bash
+export CURSOR_API_KEY="your-key"
+export FOUNDRY_DEMO_LIVE_PLAN=1
+bash scripts/demo.sh
+```
+
+**Live-only requirements:** `CURSOR_API_KEY`, `pi` CLI, `@cursor/sdk`, passing `foundry doctor --for plan --deep`.
+
 ## Current Status
 
-Planning repository with CLI bootstrap (Issue #1) in progress on `hackathon/integration`.
+Planning repository with hackathon demo on `hackathon/integration` (Issues #1–#6 subset).
 
 **Repo Alignment (2026-05):**
 

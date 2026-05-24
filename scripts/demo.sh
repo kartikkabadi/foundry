@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Foundry hackathon demo skeleton — H0 section must pass; later phases may fail until shipped.
+# Foundry hackathon demo — H0 + doctor sections; live plan requires CURSOR_API_KEY.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,22 +20,37 @@ test -f .foundry/config.toml
 test -d .foundry/runs
 echo "    OK: .foundry/config.toml + runs/ exist"
 
-echo "==> Phase 2+ (doctor) — may fail until Issue #2"
+echo "==> doctor --for plan (CI-safe; composer smoke skipped without --deep)"
 if FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" doctor --for plan; then
-  echo "    OK: doctor --for plan passed"
+  echo "    OK: doctor --for plan passed (or warn-only for missing optional deps)"
 else
-  echo "    SKIP: doctor not implemented yet (expected in H1–2)"
+  echo "    NOTE: doctor failed — expected in CI without pi/CURSOR_API_KEY"
 fi
 
-echo "==> Phase 5+ (plan artifacts) — may fail until Issue #6"
-PLAN_ID="demo-run"
-PLAN_DIR=".foundry/runs/$PLAN_ID"
-for artifact in summary.md prd.md implementation-plan.md issue-plan.md build-goal.md intent.md autonomy-contract.md; do
-  if test -f "$PLAN_DIR/$artifact"; then
-    echo "    OK: $artifact"
-  else
-    echo "    SKIP: $PLAN_DIR/$artifact (plan mode not shipped)"
-  fi
-done
+echo "==> setup stub"
+if FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" setup; then
+  echo "    OK: setup completed"
+else
+  echo "    NOTE: setup reported fixable failures (expected without full env)"
+fi
 
-echo "==> demo skeleton complete"
+echo "==> live plan (requires CURSOR_API_KEY + pi + --deep doctor)"
+if [ -n "${CURSOR_API_KEY:-}" ] && [ "${FOUNDRY_DEMO_LIVE_PLAN:-}" = "1" ]; then
+  IDEA='CLI that converts markdown PRDs to GitHub issues'
+  FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/dist/cli.js" plan "$IDEA"
+  PLAN_DIR="$(find .foundry/runs -mindepth 1 -maxdepth 1 -type d | head -1)"
+  for artifact in run.json status.md intake.md research.md intent.md summary.md prd.md implementation-plan.md issue-plan.md build-goal.md algorithm-pass.md autonomy-contract.md; do
+    test -f "$PLAN_DIR/$artifact"
+    echo "    OK: $artifact"
+  done
+  if grep -r "CURSOR_API_KEY" "$PLAN_DIR" 2>/dev/null; then
+    echo "    FAIL: secrets found in run artifacts"
+    exit 1
+  fi
+  echo "    OK: live plan artifacts present, no secrets leaked"
+else
+  echo "    SKIP: set CURSOR_API_KEY and FOUNDRY_DEMO_LIVE_PLAN=1 for live plan demo"
+  echo "    Canned idea: \"CLI that converts markdown PRDs to GitHub issues\""
+fi
+
+echo "==> demo complete"

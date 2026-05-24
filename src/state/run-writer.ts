@@ -285,7 +285,9 @@ export function updateRunStatus(
   projectRoot: string,
   runId: string,
   status: RunStatus,
-  patch: Partial<Pick<RunJson, 'next_actions' | 'blocked_actions' | 'phase'>> = {},
+  patch: Partial<
+    Pick<RunJson, 'next_actions' | 'blocked_actions' | 'phase' | 'artifacts'>
+  > = {},
 ): RunRef {
   const runDir = join(getRunsDir(projectRoot), runId);
   if (!existsSync(runDir)) {
