@@ -97,7 +97,7 @@ Add strict runtime validation for `run.json` and doctor JSON output using a sche
 
 ## Blocked by
 
-- #51
+- #11
 
 ## TDD proof
 
@@ -127,7 +127,7 @@ Decompose the monolithic run-writer module into project-init (`.foundry` layout)
 
 ## Blocked by
 
-- #51
+- #11
 
 ## TDD proof
 
@@ -157,7 +157,7 @@ Relocate secrets scrubbing from plan layer to `src/config/`. Ensure adapters nev
 
 ## Blocked by
 
-- #51
+- #11
 
 ## TDD proof
 
@@ -187,8 +187,8 @@ Persist plan orchestration phase in run.json so a killed or paused plan can resu
 
 ## Blocked by
 
-- #52
-- #53
+- #12
+- #13
 
 ## TDD proof
 
@@ -218,7 +218,7 @@ Connect `--budget quick|deep|marathon` CLI flag to agent-pass limits, phase caps
 
 ## Blocked by
 
-- #55
+- #15
 
 ## TDD proof
 
@@ -248,7 +248,7 @@ Implement `foundry approve` to transition run state from awaiting_approval to ap
 
 ## Blocked by
 
-- #52
+- #12
 
 ## TDD proof
 
@@ -279,7 +279,7 @@ Extend doctor with checks for pi-runtime, composer-fast (warn-only unless explic
 
 ## Blocked by
 
-- #51
+- #11
 
 ## TDD proof
 
@@ -309,7 +309,7 @@ Append structured events to events.jsonl during Plan Mode. No raw agent transcri
 
 ## Blocked by
 
-- #52
+- #12
 
 ## TDD proof
 
@@ -339,8 +339,8 @@ Extract packages/cli, core, doctor, adapters, planner from monolith. Bin entry s
 
 ## Blocked by
 
-- #53
-- #54
+- #13
+- #14
 
 ## TDD proof
 
@@ -370,7 +370,7 @@ Replace build stub with real command entry: doctor preflight for build, approved
 
 ## Blocked by
 
-- #57
+- #17
 
 ## TDD proof
 
@@ -400,7 +400,7 @@ Parse issue-plan.md into a DAG of execution slices with dependency edges. Detect
 
 ## Blocked by
 
-- #61
+- #21
 
 ## TDD proof
 
@@ -429,7 +429,7 @@ Adapter for creating, listing, and cleaning git worktrees for build workers. Int
 
 ## Blocked by
 
-- #61
+- #21
 
 ## TDD proof
 
@@ -459,8 +459,8 @@ Execute one issue slice serially: spawn worker in worktree, run mock/real agent 
 
 ## Blocked by
 
-- #62
-- #63
+- #22
+- #23
 
 ## TDD proof
 
@@ -489,7 +489,7 @@ Validate proofs per issue type: tests for code, screenshots for UI, citations fo
 
 ## Blocked by
 
-- #64
+- #24
 
 ## TDD proof
 
@@ -518,7 +518,7 @@ Enforce autonomy contract during build: npm install, git commit, and external wr
 
 ## Blocked by
 
-- #64
+- #24
 
 ## TDD proof
 
@@ -547,7 +547,7 @@ Worker stops after issue completion; orchestrator reviews proof and diffs before
 
 ## Blocked by
 
-- #64
+- #24
 
 ## TDD proof
 
@@ -577,7 +577,7 @@ Record deferred issues in run.json when blocked or skipped. Build Goal remains i
 
 ## Blocked by
 
-- #65
+- #25
 
 ## TDD proof
 
@@ -607,8 +607,8 @@ Resume Build Mode from checkpoint: same issue slice, same worktree reference, af
 
 ## Blocked by
 
-- #55
-- #64
+- #15
+- #24
 
 ## TDD proof
 
@@ -637,15 +637,15 @@ Integration fixture script demo-build.sh: full path from plan artifacts through 
 
 ## Blocked by
 
-- #61
-- #62
-- #63
-- #64
-- #65
-- #66
-- #67
-- #68
-- #69
+- #21
+- #22
+- #23
+- #24
+- #25
+- #26
+- #27
+- #28
+- #29
 
 ## TDD proof
 
@@ -675,7 +675,7 @@ When issue DAG has independent branches, run up to N workers in parallel with pa
 
 ## Blocked by
 
-- #62
+- #22
 
 ## TDD proof
 
@@ -704,7 +704,7 @@ Plan Mode swarm: multiple research agents explore in parallel, merge findings wi
 
 ## Blocked by
 
-- #55
+- #15
 
 ## TDD proof
 
@@ -733,7 +733,7 @@ Define team pack TOML schema (roles, reports_to, capabilities). Validate on init
 
 ## Blocked by
 
-- #51
+- #11
 
 ## TDD proof
 
@@ -762,7 +762,7 @@ Enforce comms contracts: agents with must_publish emit handoff.md; reports_to ch
 
 ## Blocked by
 
-- #73
+- #33
 
 ## TDD proof
 
@@ -791,7 +791,7 @@ Detect agent loops (repeated tool calls, no progress) and enforce agent-pass bud
 
 ## Blocked by
 
-- #56
+- #16
 
 ## TDD proof
 
@@ -820,7 +820,7 @@ On Composer rate limit, checkpoint run.json and pause — never silently fall ba
 
 ## Blocked by
 
-- #55
+- #15
 
 ## TDD proof
 
@@ -849,7 +849,7 @@ When agents disagree, write conflict.md linked to PRD section. Orchestrator reso
 
 ## Blocked by
 
-- #74
+- #34
 
 ## TDD proof
 
@@ -878,7 +878,7 @@ Adapter captures browser references into summarized requirements for Plan Mode. 
 
 ## Blocked by
 
-- #58
+- #18
 
 ## TDD proof
 
@@ -908,7 +908,7 @@ Optional CuaDriver adapter for macOS GUI automation. Warn-only in default doctor
 
 ## Blocked by
 
-- #58
+- #18
 
 ## TDD proof
 
@@ -937,7 +937,7 @@ Invoke Pi runtime for setup/plan smoke beyond pi-cli presence check. Mock path f
 
 ## Blocked by
 
-- #58
+- #18
 
 ## TDD proof
 
@@ -967,7 +967,7 @@ Terminal UI reads run.json and status.md for live run monitoring. No duplicate s
 
 ## Blocked by
 
-- #52
+- #12
 
 ## TDD proof
 
@@ -996,7 +996,7 @@ Daemon process holds Run alive across terminal detach. foundry daemon start/stop
 
 ## Blocked by
 
-- #81
+- #41
 
 ## TDD proof
 
@@ -1026,7 +1026,7 @@ Opt-in macOS notifications for awaiting_approval and rate-limit pause events.
 
 ## Blocked by
 
-- #57
+- #17
 
 ## TDD proof
 
@@ -1056,7 +1056,7 @@ Webhook adapters for Slack, Telegram, and generic HTTP webhooks. Dry-run mode va
 
 ## Blocked by
 
-- #83
+- #43
 
 ## TDD proof
 
@@ -1085,7 +1085,7 @@ Marathon budget: multi-day checkpoint intervals, stricter loop detection, schedu
 
 ## Blocked by
 
-- #75
+- #35
 
 ## TDD proof
 
@@ -1114,7 +1114,7 @@ Enhance setup with bounded agent loop over doctor results — AI suggests fixes,
 
 ## Blocked by
 
-- #80
+- #40
 
 ## TDD proof
 
@@ -1143,7 +1143,7 @@ Optional build flag to create GitHub private repo — blocked without explicit a
 
 ## Blocked by
 
-- #66
+- #26
 
 ## TDD proof
 
@@ -1172,7 +1172,7 @@ Publish foundry to npm as primary install path. Self-update command checks regis
 
 ## Blocked by
 
-- #60
+- #20
 
 ## TDD proof
 
@@ -1202,7 +1202,7 @@ Wire powerpack guide into setup/doctor recommendations as agent-feedable documen
 
 ## Blocked by
 
-- #86
+- #46
 
 ## TDD proof
 
@@ -1232,15 +1232,15 @@ Final V5 hardening: CONTEXT.md glossary current, doctor matrix locked per OPEN_Q
 
 ## Blocked by
 
-- #81
-- #82
-- #83
-- #84
-- #85
-- #86
-- #87
-- #88
-- #89
+- #41
+- #42
+- #43
+- #44
+- #45
+- #46
+- #47
+- #48
+- #49
 
 ## TDD proof
 
