@@ -36,7 +36,7 @@ flowchart LR
 
 Full issue bodies: [`V2-V5_GITHUB_ISSUES.md`](./V2-V5_GITHUB_ISSUES.md)
 
-**Published tracker:** Issues [#11–#50](https://github.com/kartikkabadi/foundry/issues?q=is%3Aissue+is%3Aopen) (V2-1 closed as #11; active work starts at #12).
+**Published tracker:** Canonical **open** issues [#31–#50](https://github.com/kartikkabadi/foundry/issues?q=is%3Aissue+is%3Aopen) (V4–V5). V2 **#11–#20** and V3 **#21–#30** are closed on GitHub with code on `main`.
 
 ## Milestone V2 — Resilient Planning Runtime (10 issues)
 
