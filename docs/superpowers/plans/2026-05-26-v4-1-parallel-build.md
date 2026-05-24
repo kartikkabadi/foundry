@@ -171,7 +171,7 @@ Expected: help lists flag; mock build completes or pauses at review as today.
 ### Task 5: Docs + issue closure prep
 
 - [ ] **Step 5.1:** Link this plan from #31 body comment when implementation starts.
-- [ ] **Step 5.2:** Remove `blocked:v3-merge` from #31 only after Kartik production-truth + PR merged.
+- [ ] **Step 5.2:** Remove `blocked:g4-production-truth` from #31 only after Kartik production-truth + V4-1 PR merged to `main`.
 
 ---
 
