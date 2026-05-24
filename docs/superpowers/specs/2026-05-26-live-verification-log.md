@@ -2,7 +2,7 @@
 
 **Checklist SSOT:** `docs/planning/LIVE_VERIFICATION.md` — do not duplicate tiers here.
 
-**Status (2026-05-24):** **Evidence logged** for live plan/approve/build + Tiers B–E. **G4 complete** per automated + live rows below (auth present; no SKIP-with-auth). **Production-truth** still requires Kartik sign-off checkbox only.
+**Status (2026-05-25):** **Evidence logged** for live plan/approve/build + Tiers B–E. **G4 complete** per automated + live rows below. **Production-truth** signed off after alignment #101 + Task 0 / V4-1 #102 on `main` @ `ecaf87b`.
 
 ## Run metadata
 
@@ -10,7 +10,7 @@
 |-------|-------|
 | Date | 2026-05-25 |
 | Operator | Foundry agent + Kartik |
-| Git SHA (PR1 branch) | `8375ffbd6a26e5e4225df965c1b036028d376644` |
+| Git SHA (`main`, production-truth) | `ecaf87b02795693ba7a6fa47a804873e71003472` |
 | Node version | 20 per `.nvmrc` (batch ran on v24.14.1) |
 | Worktree path | temp project under `mktemp` via `scripts/g4-live-rehearsal.sh` |
 | Canonical live run | `f313c3de-a3d0-474f-956f-fe5e672dcb57` (temp dir removed after run) |
@@ -29,7 +29,7 @@
 - [x] Tier B artifact usefulness
 - [x] Tier C secrets grep on real run dir
 - [x] Tier D `pi --model cursor/composer-2.5`
-- [ ] Kartik sign-off for production-truth
+- [x] Kartik sign-off for production-truth (2026-05-25; `main` @ `ecaf87b`, 156 tests)
 
 **Regenerate automated:** `bash scripts/g4-batch-verify.sh`  
 **Regenerate live:** `bash scripts/g4-live-rehearsal.sh`

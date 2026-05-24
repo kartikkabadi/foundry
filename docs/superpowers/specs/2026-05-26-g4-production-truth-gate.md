@@ -1,6 +1,6 @@
 # G4 production-truth gate (HITL)
 
-**Status:** Awaiting Kartik sign-off (agent cannot check the box).
+**Status:** Signed off 2026-05-25 — checkbox checked in [live-verification-log.md](./2026-05-26-live-verification-log.md); `main` @ `ecaf87b`.
 
 **Checkbox SSOT:** [live-verification-log.md](./2026-05-26-live-verification-log.md) — line `Kartik sign-off for production-truth` must be checked by Kartik only.
 
