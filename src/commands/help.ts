@@ -12,7 +12,8 @@ Commands (v1):
   status     Show current run status
   pause      Pause an active run
   resume     Resume a paused run
-  build      (later) Execute approved build
+  approve    Approve plan for build
+  build      Execute approved build (preflight)
 
 Options:
   --version, -v   Print version

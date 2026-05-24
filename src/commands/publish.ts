@@ -1,6 +1,6 @@
 import { findLatestRunIssuePlan, publishIssuePlan } from '../publish/orchestrate.js';
 import { summarizePublishResult } from '../publish/issue-plan.js';
-import { safeErrorMessage } from '../plan/secrets.js';
+import { safeErrorMessage } from '../config/secrets.js';
 
 export function parsePublishArgs(args: string[]): { approve: boolean; runDir?: string } {
   let approve = false;

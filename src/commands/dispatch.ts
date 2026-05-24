@@ -10,6 +10,8 @@ import { runResume } from './resume.js';
 import { runSetup } from './setup.js';
 import { runStatus } from './status.js';
 import { runPublish } from './publish.js';
+import { runApprove } from './approve.js';
+import { runBuild } from './build.js';
 import { printHelp } from './help.js';
 
 const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
@@ -25,11 +27,9 @@ const COMMANDS: Record<string, CommandHandler> = {
   status: runStatus,
   pause: runPause,
   resume: runResume,
+  approve: runApprove,
   publish: runPublish,
-  build: (args) => {
-    console.error('foundry build: not implemented (post-v1)');
-    process.exit(1);
-  },
+  build: runBuild,
 };
 
 export function dispatch(argv: string[]): void {

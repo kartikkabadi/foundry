@@ -47,6 +47,7 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
     assert.ok(out.includes('status'));
     assert.ok(out.includes('pause'));
     assert.ok(out.includes('resume'));
+    assert.ok(out.includes('approve'));
     assert.ok(out.includes('build'));
   });
 

@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { scrubSecrets } from './secrets.js';
+import { scrubSecrets } from '../config/secrets.js';
 
 const ARTIFACT_DELIMITER = /^---ARTIFACT:\s*(.+?)---\s*$/gm;
 

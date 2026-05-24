@@ -6,12 +6,16 @@ import path from 'node:path';
 import { COVERAGE_SLOTS } from '../src/plan/coverage-slots.ts';
 import {
   ALGORITHM_PASS_ARTIFACTS,
-  parseDelimitedArtifacts,
   REQUIRED_SYNTHESIS_ARTIFACTS,
 } from '../src/plan/artifacts.ts';
-import { validateIntentCoverage } from '../src/plan/coverage-slots.ts';
-import { executePlan } from '../src/plan/orchestrate.ts';
-import { initProject } from '../src/state/run-writer.ts';
+import { resumePlanFromCheckpoint } from '../src/plan/orchestrate.ts';
+import {
+  createRun,
+  initProject,
+  pauseRun,
+  writeRunState,
+  type RunRef,
+} from '../src/state/run-writer.ts';
 import type { DoctorDeps } from '../src/doctor/deps.ts';
 import type { CursorAdapter } from '../src/adapters/cursor.ts';
 
@@ -33,23 +37,13 @@ function buildFakeSynthesis(): string {
       return `---ARTIFACT: issue-plan.md---
 ## Issue 1: Demo issue
 
-Acceptance criteria for demo.
-
-## Issue 2: Second demo issue
-
-More AC.`;
+Acceptance criteria for demo.`;
     }
     return `---ARTIFACT: ${name}---\n# ${name}\n\nSynthesis content for ${name}.`;
   }).join('\n\n');
 }
 
 function mockDoctorDeps(projectRoot: string): DoctorDeps {
-  const distDir = path.join(projectRoot, 'dist');
-  fs.mkdirSync(distDir, { recursive: true });
-  fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
-  fs.mkdirSync(path.join(projectRoot, '.foundry'), { recursive: true });
-  fs.writeFileSync(path.join(projectRoot, '.foundry', 'config.toml'), 'version = 1\n', 'utf8');
-
   const cursorAdapter: CursorAdapter = {
     async smokeComposerStandard() {
       return { ok: true, message: 'mock' };
@@ -82,36 +76,34 @@ function mockDoctorDeps(projectRoot: string): DoctorDeps {
   };
 }
 
-describe('plan artifacts parsing', () => {
-  it('parses synthesis delimiters', () => {
-    const raw = buildFakeSynthesis();
-    const parsed = parseDelimitedArtifacts(raw);
-    assert.strictEqual(parsed.size, REQUIRED_SYNTHESIS_ARTIFACTS.length);
-    for (const name of REQUIRED_SYNTHESIS_ARTIFACTS) {
-      assert.ok(parsed.has(name));
-    }
+function seedMidPlanCheckpoint(ref: RunRef, idea: string): RunRef {
+  const intakeMd = `# Intake\n\n**Idea:** ${idea}\n\n## Q1: Who\n\nDevs\n`;
+  fs.writeFileSync(path.join(ref.runDir, 'intake.md'), intakeMd, 'utf8');
+  fs.writeFileSync(
+    path.join(ref.runDir, 'research.md'),
+    '# Research\nFixture research from checkpoint.',
+    'utf8',
+  );
+
+  const updated = writeRunState({
+    ...ref,
+    run: {
+      ...ref.run,
+      phase: 'interview',
+      status: 'paused',
+      artifacts: ['intake.md', 'research.md'],
+      next_actions: ['Resume with `foundry resume`'],
+    },
   });
 
-  it('parses algorithm pass delimiters', () => {
-    const raw = buildFakeAlgorithmPass();
-    const parsed = parseDelimitedArtifacts(raw);
-    assert.strictEqual(parsed.size, ALGORITHM_PASS_ARTIFACTS.length);
-    for (const name of ALGORITHM_PASS_ARTIFACTS) {
-      assert.ok(parsed.has(name));
-    }
-  });
+  return { ...ref, run: updated };
+}
 
-  it('validateIntentCoverage requires all 10 slots', () => {
-    assert.doesNotThrow(() => validateIntentCoverage(buildFakeIntent()));
-    assert.throws(() => validateIntentCoverage('## Slot 1: only one'));
-  });
-});
-
-describe('plan orchestration (fake planner, no network)', () => {
+describe('plan checkpoint resume (V2-5)', () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-plan-'));
+    projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-plan-resume-'));
     initProject(projectRoot);
   });
 
@@ -119,50 +111,69 @@ describe('plan orchestration (fake planner, no network)', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  it('creates all V1 planning artifacts and stops at awaiting_approval', async () => {
+  it('resumes from interview phase and completes remaining artifacts without duplicating research', async () => {
+    const idea = 'CLI that converts markdown PRDs to GitHub issues';
+    let ref = createRun(projectRoot, '0.1.0', {
+      mode: 'plan',
+      phase: 'init',
+      status: 'running',
+    });
+    ref = seedMidPlanCheckpoint(ref, idea);
+
+    const researchBefore = fs.readFileSync(path.join(ref.runDir, 'research.md'), 'utf8');
+    let promptCalls = 0;
+
     const fakePrompt = async (prompt: string) => {
-      if (prompt.includes('research agent')) return '# Research\nFixture research.';
+      promptCalls += 1;
       if (prompt.includes('intent interview')) return buildFakeIntent();
       if (prompt.includes('Algorithm Pass agent')) return buildFakeAlgorithmPass();
       if (prompt.includes('synthesis agent')) return buildFakeSynthesis();
+      if (prompt.includes('research agent')) {
+        throw new Error('research should be skipped on resume');
+      }
       return 'ok';
     };
 
-    const ref = await executePlan({
-      idea: 'CLI that converts markdown PRDs to GitHub issues',
+    const resumed = await resumePlanFromCheckpoint({
       projectRoot,
+      ref,
       deps: {
         doctorDeps: mockDoctorDeps(projectRoot),
         promptAgent: fakePrompt,
         isTTY: false,
-        cannedIntakeAnswers: ['Devs', 'Slow PRD-to-issue workflow', 'One-command CLI'],
       },
     });
 
-    assert.strictEqual(ref.run.status, 'awaiting_approval');
-    assert.strictEqual(ref.run.phase, 'awaiting_approval');
+    assert.strictEqual(resumed.run.status, 'awaiting_approval');
+    assert.strictEqual(resumed.run.phase, 'awaiting_approval');
+    assert.ok(promptCalls >= 3, 'should run interview, algorithm, and synthesis passes');
 
-    const required = [
-      'intake.md',
-      'research.md',
+    const researchAfter = fs.readFileSync(path.join(ref.runDir, 'research.md'), 'utf8');
+    assert.strictEqual(researchAfter, researchBefore, 'research.md must not be rewritten');
+
+    for (const file of [
       'intent.md',
       ...ALGORITHM_PASS_ARTIFACTS,
       ...REQUIRED_SYNTHESIS_ARTIFACTS,
       'autonomy-contract.md',
-      'run.json',
-      'status.md',
-    ];
-
-    for (const file of required) {
-      assert.ok(fs.existsSync(path.join(ref.runDir, file)), `missing ${file}`);
+    ]) {
+      assert.ok(fs.existsSync(path.join(resumed.runDir, file)), `missing ${file}`);
     }
+  });
 
-    const status = fs.readFileSync(path.join(ref.runDir, 'status.md'), 'utf8');
-    assert.ok(status.includes('awaiting_approval'));
+  it('pauseRun preserves phase for resume re-entry', () => {
+    let ref = createRun(projectRoot, '0.1.0', { run_id: 'pause-checkpoint' });
+    writeRunState({
+      ...ref,
+      run: {
+        ...ref.run,
+        phase: 'algorithm_pass',
+        artifacts: ['intake.md', 'research.md', 'intent.md'],
+      },
+    });
 
-    for (const file of required) {
-      const content = fs.readFileSync(path.join(ref.runDir, file), 'utf8');
-      assert.ok(!content.includes('test-key'), `${file} leaked API key`);
-    }
+    const paused = pauseRun(projectRoot);
+    assert.strictEqual(paused.run.status, 'paused');
+    assert.strictEqual(paused.run.phase, 'algorithm_pass');
   });
 });

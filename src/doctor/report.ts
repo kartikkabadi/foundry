@@ -1,3 +1,4 @@
+import { validateDoctorReport } from '../schema/doctor-report.js';
 import type { DoctorCheck, DoctorReport } from '../types/doctor.js';
 
 const STATUS_LABEL: Record<DoctorCheck['status'], string> = {
@@ -37,7 +38,8 @@ export function formatDoctorTable(report: DoctorReport): string {
 }
 
 export function formatDoctorJson(report: DoctorReport): string {
-  return `${JSON.stringify(report, null, 2)}\n`;
+  const validated = validateDoctorReport(report);
+  return `${JSON.stringify(validated, null, 2)}\n`;
 }
 
 export function printDoctorReport(report: DoctorReport, json: boolean): void {
