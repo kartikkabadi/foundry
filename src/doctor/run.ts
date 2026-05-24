@@ -5,6 +5,7 @@ import type {
   DoctorReport,
   DoctorRequiredCheckId,
 } from '../types/doctor.js';
+import { validateDoctorReport } from '../schema/doctor-report.js';
 import { DOCTOR_SCHEMA_VERSION } from '../types/doctor.js';
 import type { DoctorDeps } from './deps.js';
 import {
@@ -103,16 +104,16 @@ export async function runDoctorChecks(
 
     const exitCode = computeExitCode(filtered, strict);
 
-    return {
+    return validateDoctorReport({
       schemaVersion: DOCTOR_SCHEMA_VERSION,
       for: forTarget,
       checks: filtered,
       exitCode,
       generatedAt: new Date().toISOString(),
-    };
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return {
+    return validateDoctorReport({
       schemaVersion: DOCTOR_SCHEMA_VERSION,
       for: forTarget,
       checks: [
@@ -124,7 +125,7 @@ export async function runDoctorChecks(
       ],
       exitCode: 2,
       generatedAt: new Date().toISOString(),
-    };
+    });
   }
 }
 

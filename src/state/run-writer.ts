@@ -8,6 +8,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import {
+  formatRunJsonValidationError,
+  parseRunJson,
+  RunJsonValidationError,
+} from '../schema/run-json.js';
 import type { RunJson, RunStatus } from '../types/run.js';
 import { RUN_JSON_SCHEMA_VERSION } from '../types/run.js';
 
@@ -117,29 +122,32 @@ function defaultRunJson(
   };
 }
 
-function isRunJson(value: unknown): value is RunJson {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const run = value as Record<string, unknown>;
-  return (
-    run.schema_version === RUN_JSON_SCHEMA_VERSION &&
-    typeof run.run_id === 'string' &&
-    typeof run.foundry_version === 'string' &&
-    typeof run.mode === 'string' &&
-    typeof run.budget === 'string' &&
-    typeof run.status === 'string' &&
-    typeof run.phase === 'string' &&
-    typeof run.composer_speed === 'string' &&
-    typeof run.created_at === 'string' &&
-    typeof run.updated_at === 'string' &&
-    typeof run.agent_pass_budget === 'object' &&
-    run.agent_pass_budget !== null &&
-    Array.isArray(run.artifacts) &&
-    Array.isArray(run.blocked_actions) &&
-    Array.isArray(run.next_actions)
+function malformedRunError(runJsonPath: string, cause: RunJsonValidationError): RunStateError {
+  return new RunStateError(
+    'MALFORMED',
+    `Invalid run.json schema: ${runJsonPath} — ${formatRunJsonValidationError(cause)}`,
   );
+}
+
+function readParsedRunJson(runJsonPath: string, parsed: unknown): RunJson {
+  try {
+    return parseRunJson(parsed);
+  } catch (error) {
+    if (error instanceof RunJsonValidationError) {
+      throw malformedRunError(runJsonPath, error);
+    }
+    throw error;
+  }
+}
+
+interface RunScanResult {
+  runId: string;
+  runDir: string;
+  runJsonPath: string;
+  runJsonMtimeMs: number;
+  valid?: RunRef;
+  malformed?: RunStateError;
+  rawStatus?: string;
 }
 
 export function statusMarkdown(run: RunJson): string {
@@ -185,11 +193,7 @@ export function readRunJson(runJsonPath: string): RunJson {
     throw new RunStateError('MALFORMED', `Malformed run.json: ${runJsonPath}`);
   }
 
-  if (!isRunJson(parsed)) {
-    throw new RunStateError('MALFORMED', `Invalid run.json schema: ${runJsonPath}`);
-  }
-
-  return parsed;
+  return readParsedRunJson(runJsonPath, parsed);
 }
 
 export function writeRunState(runRef: Pick<RunRef, 'runJsonPath' | 'statusMdPath' | 'run'>): RunJson {
@@ -206,7 +210,7 @@ function runRefFromDir(runDir: string, runId: string): RunRef {
   return { runId, runDir, runJsonPath, statusMdPath, run };
 }
 
-export function listRunRefs(projectRoot: string): RunRef[] {
+function scanRunResults(projectRoot: string): RunScanResult[] {
   assertProjectInitialized(projectRoot);
   const runsDir = getRunsDir(projectRoot);
 
@@ -214,7 +218,7 @@ export function listRunRefs(projectRoot: string): RunRef[] {
     return [];
   }
 
-  const refs: RunRef[] = [];
+  const results: RunScanResult[] = [];
   for (const entry of readdirSync(runsDir)) {
     const runDir = join(runsDir, entry);
     if (!statSync(runDir).isDirectory()) {
@@ -226,24 +230,93 @@ export function listRunRefs(projectRoot: string): RunRef[] {
       continue;
     }
 
+    const runJsonMtimeMs = statSync(runJsonPath).mtimeMs;
+    let parsed: unknown;
     try {
-      refs.push(runRefFromDir(runDir, entry));
+      parsed = JSON.parse(readFileSync(runJsonPath, 'utf8'));
+    } catch {
+      results.push({
+        runId: entry,
+        runDir,
+        runJsonPath,
+        runJsonMtimeMs,
+        malformed: new RunStateError('MALFORMED', `Malformed run.json: ${runJsonPath}`),
+      });
+      continue;
+    }
+
+    const rawStatus =
+      parsed && typeof parsed === 'object' && typeof (parsed as Record<string, unknown>).status === 'string'
+        ? ((parsed as Record<string, unknown>).status as string)
+        : undefined;
+
+    try {
+      const run = readParsedRunJson(runJsonPath, parsed);
+      const statusMdPath = join(runDir, 'status.md');
+      results.push({
+        runId: entry,
+        runDir,
+        runJsonPath,
+        runJsonMtimeMs,
+        rawStatus: run.status,
+        valid: { runId: entry, runDir, runJsonPath, statusMdPath, run },
+      });
     } catch (error) {
       if (error instanceof RunStateError && error.code === 'MALFORMED') {
+        results.push({
+          runId: entry,
+          runDir,
+          runJsonPath,
+          runJsonMtimeMs,
+          rawStatus,
+          malformed: error,
+        });
         continue;
       }
       throw error;
     }
   }
 
-  return refs.sort(
-    (a, b) => new Date(b.run.updated_at).getTime() - new Date(a.run.updated_at).getTime(),
-  );
+  return results;
+}
+
+function throwLatestMalformed(results: RunScanResult[]): never {
+  const malformed = results
+    .filter((result) => result.malformed)
+    .sort((a, b) => b.runJsonMtimeMs - a.runJsonMtimeMs);
+
+  throw malformed[0]!.malformed!;
+}
+
+export function listRunRefs(projectRoot: string): RunRef[] {
+  const refs = scanRunResults(projectRoot)
+    .filter((result) => result.valid)
+    .map((result) => result.valid!)
+    .sort(
+      (a, b) => new Date(b.run.updated_at).getTime() - new Date(a.run.updated_at).getTime(),
+    );
+
+  return refs;
 }
 
 export function findLatestRun(projectRoot: string): RunRef | null {
-  const refs = listRunRefs(projectRoot);
-  return refs[0] ?? null;
+  const results = scanRunResults(projectRoot);
+  const refs = results
+    .filter((result) => result.valid)
+    .map((result) => result.valid!)
+    .sort(
+      (a, b) => new Date(b.run.updated_at).getTime() - new Date(a.run.updated_at).getTime(),
+    );
+
+  if (refs.length > 0) {
+    return refs[0] ?? null;
+  }
+
+  if (results.some((result) => result.malformed)) {
+    throwLatestMalformed(results);
+  }
+
+  return null;
 }
 
 export function findActiveRun(projectRoot: string): RunRef | null {
@@ -252,7 +325,29 @@ export function findActiveRun(projectRoot: string): RunRef | null {
 }
 
 export function findLatestPausedRun(projectRoot: string, runId?: string): RunRef | null {
-  const refs = listRunRefs(projectRoot).filter((ref) => ref.run.status === 'paused');
+  const results = scanRunResults(projectRoot);
+
+  const malformedPaused = results.filter(
+    (result) => result.malformed && result.rawStatus === 'paused',
+  );
+  if (malformedPaused.length > 0) {
+    if (runId) {
+      const match = malformedPaused.find((result) => result.runId === runId);
+      if (match?.malformed) {
+        throw match.malformed;
+      }
+    } else {
+      malformedPaused.sort((a, b) => b.runJsonMtimeMs - a.runJsonMtimeMs);
+      throw malformedPaused[0]!.malformed!;
+    }
+  }
+
+  const refs = results
+    .filter((result) => result.valid && result.valid.run.status === 'paused')
+    .map((result) => result.valid!)
+    .sort(
+      (a, b) => new Date(b.run.updated_at).getTime() - new Date(a.run.updated_at).getTime(),
+    );
 
   if (runId) {
     return refs.find((ref) => ref.runId === runId) ?? null;
