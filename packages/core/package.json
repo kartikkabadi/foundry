@@ -14,9 +14,15 @@
     "./state.js": "./dist/state.js",
     "./resume-target.js": "./dist/resume-target.js",
     "./paths.js": "./dist/paths.js",
-    "./gates.js": "./dist/gates.js"
+    "./gates.js": "./dist/gates.js",
+    "./team/*": "./dist/team/*",
+    "./loop/*": "./dist/loop/*",
+    "./conflicts/*": "./dist/conflicts/*",
+    "./marathon/*": "./dist/marathon/*",
+    "./constants/*": "./dist/constants/*"
   },
   "dependencies": {
+    "smol-toml": "^1.3.1",
     "zod": "^4.4.3"
   }
 }

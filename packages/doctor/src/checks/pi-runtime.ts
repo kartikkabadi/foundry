@@ -1,20 +1,23 @@
+import { createPiRuntimeAdapter } from '@foundry/adapters/pi-runtime.js';
 import type { DoctorCheck } from '@foundry/core/types/doctor.js';
 import type { DoctorDeps } from '../deps.js';
 
 export function checkPiRuntime(deps: DoctorDeps): DoctorCheck {
-  const runtime = deps.exec('pi', ['run', '--version']);
-  if (runtime.ok) {
+  const adapter = createPiRuntimeAdapter((cmd, args) => deps.exec(cmd, args));
+  const probe = adapter.probe();
+
+  if (probe.ok) {
     return {
       id: 'pi-runtime',
       status: 'pass',
-      message: runtime.stdout || 'Pi runtime available',
+      message: probe.message,
     };
   }
 
   return {
     id: 'pi-runtime',
     status: 'fail',
-    message: 'Pi runtime not available (pi run --version failed).',
+    message: probe.message,
     repair: 'Install Pi runtime and verify `pi run --version` succeeds.',
   };
 }

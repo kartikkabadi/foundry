@@ -1,20 +1,23 @@
+import { createCuadriverAdapter } from '@foundry/adapters/cuadriver.js';
 import type { DoctorCheck } from '@foundry/core/types/doctor.js';
 import type { DoctorDeps } from '../deps.js';
 
-export function checkCuadriverComputerUse(deps: DoctorDeps, _deep: boolean): DoctorCheck {
-  const which = deps.exec('which', ['cuadriver']);
-  if (which.ok && which.stdout) {
+export function checkCuadriverComputerUse(deps: DoctorDeps, deep: boolean): DoctorCheck {
+  const adapter = createCuadriverAdapter((cmd, args) => deps.exec(cmd, args));
+  const probe = adapter.probe(deep);
+
+  if (probe.status === 'pass') {
     return {
       id: 'cuadriver-computer-use',
       status: 'pass',
-      message: `CuaDriver available at ${which.stdout}`,
+      message: probe.message,
     };
   }
 
   return {
     id: 'cuadriver-computer-use',
     status: 'warn',
-    message: 'CuaDriver not found on PATH (optional macOS GUI automation).',
+    message: probe.message,
     repair: 'Install cua-driver for GUI automation, or skip computer-use features.',
   };
 }

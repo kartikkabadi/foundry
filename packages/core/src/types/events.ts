@@ -7,7 +7,9 @@ export type FoundryEventType =
   | 'blocker_reported'
   | 'conflict_raised'
   | 'decision_requested'
-  | 'agent_finished';
+  | 'agent_finished'
+  | 'handoff_published'
+  | 'loop_detected';
 
 export interface FoundryEventRecord {
   schema_version: typeof EVENTS_SCHEMA_VERSION;

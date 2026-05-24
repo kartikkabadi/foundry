@@ -1,3 +1,4 @@
+import { POWERPACK_GUIDE_HINT } from '@foundry/core/constants/powerpack.js';
 import type { DoctorCheck } from '@foundry/core/types/doctor.js';
 import type { DoctorDeps } from '../deps.js';
 
@@ -24,6 +25,6 @@ export function checkPiCli(deps: DoctorDeps): DoctorCheck {
     id: 'pi-cli',
     status: 'fail',
     message: 'Pi CLI not found on PATH.',
-    repair: 'Install Pi and ensure `pi` is available. See Pi setup docs.',
+    repair: `Install Pi and ensure \`pi\` is available. ${POWERPACK_GUIDE_HINT}`,
   };
 }
