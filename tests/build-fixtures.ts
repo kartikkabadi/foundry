@@ -3,7 +3,19 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import type { CursorAdapter } from '@foundry/adapters/cursor.js';
+import { mockAgentWriteFile } from '@foundry/planner/build/worker.js';
+import type { BuildDeps } from '@foundry/planner/build/orchestrate.js';
 import { createRun, initProject, type RunRef } from '@foundry/core/state/run-writer.js';
+
+export const FIXTURE_ISSUE_PLAN_SINGLE = `# Issue plan
+
+## Issue 1: Single issue for review gate
+
+Type: code
+Blocked by:
+
+Only issue in plan.
+`;
 
 export const FIXTURE_ISSUE_PLAN = `# Issue plan
 
@@ -71,6 +83,20 @@ function ensureMockFoundryRoot(projectRoot: string): string {
   fs.mkdirSync(distDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, 'cli.js'), '#!/usr/bin/env node\n', 'utf8');
   return root;
+}
+
+export function mockBuildWorkerDeps(autoApproveReview = true) {
+  return {
+    runAgent: async (opts: Parameters<typeof mockAgentWriteFile>[0]) => mockAgentWriteFile(opts),
+    autoApproveReview,
+  };
+}
+
+export function mockBuildDeps(projectRoot: string, autoApproveReview = true): Partial<BuildDeps> {
+  return {
+    doctorDeps: mockDoctorDeps(projectRoot),
+    workerDeps: mockBuildWorkerDeps(autoApproveReview),
+  };
 }
 
 export function mockDoctorDeps(projectRoot: string): DoctorDeps {

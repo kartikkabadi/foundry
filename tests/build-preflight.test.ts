@@ -9,6 +9,7 @@ import { executeBuild, runBuildPreflight } from '@foundry/planner/build/orchestr
 import { createRun, initProject } from '@foundry/core/state/run-writer.js';
 import {
   FIXTURE_ISSUE_PLAN,
+  mockBuildDeps,
   mockDoctorDeps,
   seedApprovedBuildRun,
 } from './build-fixtures.js';
@@ -68,7 +69,7 @@ describe('foundry build preflight (V3-1)', () => {
     const result = await executeBuild({
       projectRoot,
       ref,
-      deps: { doctorDeps: mockDoctorDeps(projectRoot) },
+      deps: mockBuildDeps(projectRoot),
     });
 
     assert.strictEqual(result.run.mode, 'build');

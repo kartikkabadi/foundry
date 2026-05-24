@@ -6,7 +6,7 @@ import path from 'node:path';
 import { resumeBuildFromCheckpoint } from '@foundry/planner/build/orchestrate.js';
 import { writeRunState } from '@foundry/core/state/run-writer.js';
 import { cleanupFoundryWorktrees } from '@foundry/adapters/worktree.js';
-import { mockDoctorDeps, seedApprovedBuildRun } from './build-fixtures.js';
+import { mockBuildDeps, seedApprovedBuildRun } from './build-fixtures.js';
 
 describe('foundry build resume (V3-9)', () => {
   let projectRoot: string;
@@ -73,7 +73,7 @@ describe('foundry build resume (V3-9)', () => {
     const resumed = await resumeBuildFromCheckpoint({
       projectRoot,
       ref: pausedRef,
-      deps: { doctorDeps: mockDoctorDeps(projectRoot) },
+      deps: mockBuildDeps(projectRoot),
     });
 
     assert.strictEqual(resumed.run.mode, 'build');

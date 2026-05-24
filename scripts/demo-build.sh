@@ -36,8 +36,8 @@ FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" a
 echo "==> foundry build --dry-run"
 FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" build --dry-run
 
-echo "==> foundry build (mock worker)"
-FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" build
+echo "==> foundry build (mock worker — FOUNDRY_BUILD_MOCK=1)"
+FOUNDRY_BUILD_MOCK=1 FOUNDRY_HOME="$DEMO_TMP/foundry-home" node "$ROOT/packages/cli/bin/foundry.js" build
 
 test -d "$RUN_DIR/proofs"
 PROOF_COUNT="$(find "$RUN_DIR/proofs" -name '*.json' | wc -l | tr -d ' ')"

@@ -7,6 +7,8 @@
   },
   "exports": {
     "./cursor.js": "./dist/cursor.js",
+    "./foundry-agent.js": "./dist/foundry-agent.js",
+    "./build-agent.js": "./dist/build-agent.js",
     "./worktree.js": "./dist/worktree.js"
   },
   "dependencies": {

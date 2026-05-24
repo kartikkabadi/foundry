@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createWorktree,
@@ -72,7 +72,7 @@ export async function executeIssueWorker(options: {
     issue: issue.number,
     type: issue.type,
     summary: `Completed issue #${issue.number}: ${issue.title}`,
-    evidence: defaultProofEvidence(issue.type),
+    evidence: proofEvidenceFromAgent(issue.type, agentResult.outputFile),
   });
 
   let updatedBuild = enterReviewGate(build, issue.number);
@@ -98,6 +98,22 @@ export async function executeIssueWorker(options: {
   };
 
   return { issue: issueState, proofPath, build: updatedBuild };
+}
+
+export function proofEvidenceFromAgent(
+  type: import('@foundry/core/types/build.js').ProofType,
+  outputFile: string,
+): Record<string, unknown> {
+  const base = defaultProofEvidence(type);
+  if (!existsSync(outputFile)) {
+    return base;
+  }
+  const summary = readFileSync(outputFile, 'utf8').trim().slice(0, 500);
+  return {
+    ...base,
+    agent_output_file: outputFile,
+    agent_summary: summary.length > 0 ? summary : '(empty)',
+  };
 }
 
 export function mockAgentWriteFile(options: {

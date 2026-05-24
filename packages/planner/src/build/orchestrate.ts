@@ -14,6 +14,7 @@ import {
   topologicalOrder,
 } from './issue-plan-graph.js';
 import { evaluateBuildGoalComplete, formatBuildSummary, deferIssue } from './defer.js';
+import { runBuildAgent } from '@foundry/adapters/build-agent.js';
 import { executeIssueWorker, mockAgentWriteFile, type BuildWorkerDeps } from './worker.js';
 import { toProofRecord } from './proof-registry.js';
 import { readProofJson } from './proof-registry.js';
@@ -38,12 +39,26 @@ export class BuildPreflightError extends Error {
   }
 }
 
+function defaultRunAgent(
+  opts: Parameters<BuildWorkerDeps['runAgent']>[0],
+): ReturnType<BuildWorkerDeps['runAgent']> {
+  if (process.env.FOUNDRY_BUILD_MOCK === '1') {
+    return Promise.resolve(mockAgentWriteFile(opts));
+  }
+  return runBuildAgent({
+    issue: opts.issue,
+    worktreePath: opts.worktreePath,
+    projectRoot: opts.projectRoot,
+  });
+}
+
 export function createDefaultBuildDeps(overrides: Partial<BuildDeps> = {}): BuildDeps {
+  const mockMode = process.env.FOUNDRY_BUILD_MOCK === '1';
   return {
     doctorDeps: createDefaultDeps(),
     workerDeps: {
-      runAgent: async (opts) => mockAgentWriteFile(opts),
-      autoApproveReview: true,
+      runAgent: defaultRunAgent,
+      autoApproveReview: mockMode,
     },
     ...overrides,
   };
@@ -158,16 +173,6 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
       break;
     }
 
-    if (build.deferred.includes(pending.number)) {
-      build = {
-        ...build,
-        issues: build.issues.map((issue) =>
-          issue.number === pending.number ? { ...issue, status: 'deferred' } : issue,
-        ),
-      };
-      continue;
-    }
-
     build = { ...build, current_issue: pending.number };
 
     const workerResult = await executeIssueWorker({
@@ -204,8 +209,13 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   }
 
   build = evaluateBuildGoalComplete(build);
-  const finalStatus = build.goal_complete ? 'complete' : 'running';
-  const finalPhase = build.goal_complete ? 'build_complete' : 'build_executing';
+  const awaitingReview = build.review_status === 'pending';
+  const finalStatus = build.goal_complete ? 'complete' : awaitingReview ? 'paused' : 'running';
+  const finalPhase = build.goal_complete
+    ? 'build_complete'
+    : awaitingReview
+      ? 'build_review'
+      : 'build_executing';
 
   currentRef = updateRunStatus(projectRoot, ref.runId, finalStatus, {
     phase: finalPhase,

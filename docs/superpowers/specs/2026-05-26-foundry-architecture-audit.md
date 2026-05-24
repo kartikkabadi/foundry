@@ -1,6 +1,6 @@
 # Foundry architecture audit (2026-05-26)
 
-Evidence-backed readonly audit of `main` at `b994de2` (106 tests green). V3 Build MVP lives on branch `v3/build-mode-mvp` ([PR #98](https://github.com/kartikkabadi/foundry/pull/98)); figures below cite `main` unless noted.
+Evidence-backed audit of `main` after PR #98 merge (`36018f9`). **G3:** 140 tests pass (post honest-build + `FoundryAgentClient` extract).
 
 ## Package boundaries
 
@@ -9,55 +9,51 @@ Evidence-backed readonly audit of `main` at `b994de2` (106 tests green). V3 Buil
 | `packages/cli` | Command dispatch, argv parsing | `@foundry/core`, `@foundry/planner`, `@foundry/doctor` |
 | `packages/core` | Run state, schemas, config, events | No planner/cli/doctor |
 | `packages/doctor` | Deterministic checks, fix | `@foundry/core`, `@foundry/adapters` |
-| `packages/adapters` | Cursor SDK seam (`Agent.prompt`, smokes) | `@foundry/core` |
-| `packages/planner` | Plan/publish orchestration; **build on PR #98 only** | `@foundry/core`, `@foundry/doctor`, `@foundry/adapters` |
+| `packages/adapters` | `FoundryAgentClient`, cursor facade, worktree | `@foundry/core`, `@cursor/sdk` |
+| `packages/planner` | Plan, publish, **build** (`src/build/`) | `@foundry/core`, `@foundry/doctor`, `@foundry/adapters` |
 
-Enforced by `tests/package-boundaries.test.ts`: planner must not import cli; doctor must not import planner/cli.
+Enforced by `tests/package-boundaries.test.ts`.
 
 ## LOC hotspots (thermo watchlist)
 
 | File | LOC | Note |
 |------|-----|------|
-| `packages/core/src/state/run-store.ts` | 452 | Run CRUD, approve, pause/resume — split candidate post-V3 |
-| `packages/planner/src/plan/orchestrate.ts` | 407 | Plan pipeline — split by phase after V3 merge |
-| `packages/planner/src/build/orchestrate.ts` | 257 (PR #98) | New; acceptable if kept cohesive |
+| `packages/core/src/state/run-store.ts` | ~466 | Split candidate before V4 |
+| `packages/planner/src/plan/orchestrate.ts` | ~407 | Split by phase when touching plan |
+| `packages/planner/src/build/orchestrate.ts` | ~260 | Cohesive; review pause at `build_review` |
 
-Legacy `src/state/run-store.ts` may still exist; **SSOT is `packages/core`**. README references to top-level `src/` should stay aligned with packages layout.
+## Build / Cursor seam (post-merge)
 
-## Stale dist / build exports
+| Path | Role |
+|------|------|
+| `packages/adapters/src/foundry-agent.ts` | **SSOT** — `FoundryAgentClient`, smokes, `prompt` |
+| `packages/adapters/src/cursor.ts` | Thin facade for doctor + plan |
+| `packages/adapters/src/build-agent.ts` | Build worker → `FoundryAgentClient` |
+| `packages/planner/src/build/orchestrate.ts` | Default: real agent; `FOUNDRY_BUILD_MOCK=1` for CI/demo |
 
-- `packages/planner/package.json` exports `"./build/*": "./dist/build/*"` while **`packages/planner/src/build/` is absent on `main`** (only on V3 branch).
-- CI runs `npm run build` after tests; planner build must emit `dist/build` on V3 branch or typecheck/export paths break on checkout.
-- **Risk:** merging PR #98 without verifying `npm run build` produces `dist/build/*`.
-
-## Dual Cursor APIs (code-judo)
-
-| Call site | API | File |
-|-----------|-----|------|
-| Doctor smokes | `createCursorAdapter()` | `packages/doctor/src/deps.ts` |
-| Plan agent passes | `promptComposer()` | `packages/planner/src/plan/orchestrate.ts` |
-
-Both wrap `@cursor/sdk` `Agent.prompt` in `packages/adapters/src/cursor.ts`. **Defer `FoundryAgentClient` extract until post-V3 merge + G4** (see [`2026-05-26-pi-cursor-sdk-inhouse-options.md`](2026-05-26-pi-cursor-sdk-inhouse-options.md) and mission alignment).
+**CLI default:** `autoApproveReview: false` (HITL). **Demo/CI:** `FOUNDRY_BUILD_MOCK=1` enables mock agent + auto-review.
 
 ## Ranked improvements
 
-### Strong (do after V3 merge + G4)
+### Strong (V4 prep)
 
-1. **Unify adapter seam** — single `FoundryAgentClient` (or internal `promptOnce`) for doctor + plan + build; delete parallel public APIs.
-2. **Split `run-store.ts`** — extract approve/find-active/pause into focused modules once V3 stabilizes.
-3. **Planner build dist hygiene** — ensure `src/build` and `dist/build` stay in sync in CI `npm run build`.
+1. Split `run-store.ts` before parallel build state grows.
+2. Checkpoint resume without full `executeBuild` re-entry.
+3. Complete exhaustive G4 live rows in `LIVE_VERIFICATION.md` (see live verification log).
 
 ### Moderate
 
-4. **Parity tests** — `tests/cursor-adapter.test.ts` with fixtures mirroring pi-cursor-sdk auth/smoke semantics (no live network in default `npm test`).
-5. **Remove legacy `src/` tree** if still duplicated — deletion test: no imports from `src/` in packages.
+4. Parity fixtures vs pi-cursor-sdk in `tests/cursor-adapter.test.ts` (extend with mocked SDK when Node mock.module available in CI).
 
-### Speculative (ADR-gated)
+### Done (this slice)
 
-6. **Shared npm package** with pi-cursor-sdk — only if extract audit proves duplication across Pi extension and Foundry CLI.
-7. **Node 22.19+ bump** — post-swarm slice C; not required for G4 while repo pins Node 20 (`.nvmrc`, `engines`).
+- `FoundryAgentClient` extract
+- Honest build default + mock env for demos
+- Dead defer branch removed
+- Proof evidence includes agent output file
 
 ## CI / verification snapshot
 
-- `main`: `npm test` → 106 pass (2026-05-26; verified: `cd foundry && npm test` on `main` @ `b994de2`).
-- PR #98: 134 tests on branch; CI `verify` was red on `approve.test.ts` — fixed in `8281987` on `v3/build-mode-mvp` (re-verify with `gh pr checks 98` before merge).
+- `npm test` → 140 pass
+- `scripts/demo-build.sh` → uses `FOUNDRY_BUILD_MOCK=1`
+- G4 automated batch: `scripts/g4-batch-verify.sh` → appends to live verification log
