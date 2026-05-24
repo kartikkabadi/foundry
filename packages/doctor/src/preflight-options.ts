@@ -33,7 +33,11 @@ export function resolveModePreflightChecks(
   forTarget: DoctorForTarget,
   env: PreflightEnv = process.env as PreflightEnv,
 ): RunDoctorOptions {
-  return { ...resolvePreflightOptions(forTarget, env), strict: false };
+  return {
+    ...resolvePreflightOptions(forTarget, env),
+    strict: false,
+    mockBuild: forTarget === 'build' && isMockBuild(env),
+  };
 }
 
 /** CLI/orchestration: explicit --deep wins; otherwise mode policy (matches executeBuild / executePlan). */
