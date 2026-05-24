@@ -38,6 +38,9 @@ function mockDeps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
     async smokeComposerStandard() {
       return { ok: true, message: 'Composer 2.5 Standard smoke passed (mock)' };
     },
+    async smokeComposerFast() {
+      return { ok: true, message: 'Composer 2.5 Fast smoke passed (mock)' };
+    },
   };
 
   const base: DoctorDeps = {
@@ -140,6 +143,9 @@ describe('doctor checks (injected deps, no network)', () => {
       cursorAdapter: {
         async smokeComposerStandard() {
           return { ok: false, message: 'Composer unavailable' };
+        },
+        async smokeComposerFast() {
+          return { ok: false, message: 'Composer Fast unavailable' };
         },
       },
     });

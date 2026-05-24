@@ -46,6 +46,9 @@ function mockDoctorDeps(): DoctorDeps {
     async smokeComposerStandard() {
       return { ok: true, message: 'ok' };
     },
+    async smokeComposerFast() {
+      return { ok: true, message: 'ok fast' };
+    },
   };
 
   return {

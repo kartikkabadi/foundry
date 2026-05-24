@@ -7,3 +7,8 @@ export { checkComposer25Standard } from './composer-2.5-standard.js';
 export { checkProjectFoundryConfig } from './project-foundry-config.js';
 export { checkGitGithub } from './git-github.js';
 export { checkGitWorktrees } from './git-worktrees.js';
+export { checkPiRuntime } from './pi-runtime.js';
+export { checkComposer25Fast } from './composer-2.5-fast.js';
+export { checkBrowserCapture } from './browser-capture.js';
+export { checkCuadriverComputerUse } from './cuadriver-computer-use.js';
+export { checkSkillsTeamPacks } from './skills-team-packs.js';
