@@ -938,3 +938,17 @@ Status should show:
 - Next action.
 
 No full TUI in v1. `run.json` and `status.md` should be designed so a TUI can be added later without reworking the runtime.
+
+## Repo Alignment (2026-05, after user clarification)
+
+**Pi Extension Pack (this repo's sibling: pi-composer-powerpack)**: Pure guide-style project + curated assets / whole Git repo of things you can do (not "run this script"). Includes launchers (pi-elite, pi-team, pi-chain, pi-pi-lab), extensions (cursor-sdk, coms, damage-control-continue, agent-chain/team, subagent-widget, tilldone, pi-pi, etc.), agent prompts (planner, reviewer, red-team, builder, etc.), mono-black theme, install.sh, and config.
+
+**Key (user's words)**: "It should be more like a guide and a whole Git repo of things you can do, with a guide you can feed to your agent and say, 'Hey, look at this repo.' The agent should walk the user through it. You should include instructions for what the agent should ask the user and what the user wants, and help them set everything up."
+
+**Foundry (this repo)**: The rock-solid, detailed, actual agent that can work — the planning-first standalone TypeScript/Node CLI per the full locked V1 spec (doctor, setup, plan, build with Composer 2.5 exclusive + deterministic checks, artifacts, autonomy contracts, run/resume, etc.). Uses Pi + the Extension Pack guide underneath as the polished base runtime.
+
+**Relationship & First Milestone**: Both repos kept active and cross-linked. Powerpack is the "polished Pi setup guide + assets" companion layer. Foundry is the higher-level complex-work runtime. Clear separation documented here, in both READMEs, and planning. First milestone achieved when both have this documented + hygiene baseline (AGENTS.md etc.). No naming conflicts; powerpack direction revived only as the guide (per this clarification).
+
+See: powerpack README (now updated as explicit agent-feedable guide) and this planning/ folder for V1 details. Local clones: documents/Projects/foundry (this) and documents/Projects/pi-composer-powerpack (powerpack).
+
+This locks the alignment.

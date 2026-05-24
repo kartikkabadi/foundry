@@ -17,14 +17,21 @@ stop for approval
 
 ## Current Status
 
-Planning repository. No implementation has started yet.
+Planning repository. Small parallel steps active for first milestone (clear separation in docs + hygiene baseline).
+
+**Repo Alignment (2026-05, per user clarification)**: 
+- **Pi Extension Pack (powerpack)** = pure guide-style + curated assets / whole Git repo (agent-feedable). Local clone at `documents/Projects/pi-composer-powerpack`. See its updated README for "feed this repo to your agent" instructions + the 10 coverage questions + cross-link here.
+- **Foundry (this repo)** = rock-solid, detailed multi-agent planning/build runtime per full V1 spec. This local clone + GH (8 issues published).
+- Both active, cross-linked, with clear roles (powerpack = the polished Pi setup guide layer; Foundry = the higher-level runtime that uses it). See DECISIONS.md for the full locked alignment section (includes user quotes).
 
 Start here:
 
 - [V1 plan](docs/planning/V1_PLAN.md)
-- [Decision log](docs/planning/DECISIONS.md)
+- [Decision log](docs/planning/DECISIONS.md) (now includes Repo Alignment section)
 - [Running spec](docs/planning/RUNNING_SPEC.md)
 - [GitHub issue breakdown](docs/planning/GITHUB_ISSUE_BREAKDOWN.md)
+
+Local clones preflighted with git discipline. Both READMEs + planning updated for alignment. Next: hygiene (AGENTS.md) + small impl steps.
 
 ## Core Constraints
 
