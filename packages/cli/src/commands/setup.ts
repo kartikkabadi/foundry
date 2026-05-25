@@ -111,6 +111,10 @@ async function executeSetup(mode: SetupMode): Promise<void> {
     console.log('\nFix these in dependency order:');
     failures.forEach((check, index) => {
       console.log(`${index + 1}. [${check.id}] ${check.repair ?? check.message}`);
+      if (process.env.FOUNDRY_SETUP_AGENT === '1' && mode !== 'expert') {
+        const hint = check.repair ?? check.message;
+        console.log(`   → Suggested: ${hint}`);
+      }
     });
 
     console.log('\nSetup does not install packages or edit Pi/Cursor config automatically.');

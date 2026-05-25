@@ -22,6 +22,8 @@ import { runBuildAgent } from '@foundry/adapters/build-agent.js';
 import { executeIssueWorker, mockAgentWriteFile, type BuildWorkerDeps } from './worker.js';
 import { toProofRecord } from './proof-registry.js';
 import { readProofJson } from './proof-registry.js';
+import { BuildPreflightError } from './errors.js';
+import { assertNoBlockingConflicts, runTeamCommsPreflight } from './team-preflight.js';
 
 export interface ExecuteBuildOptions {
   projectRoot: string;
@@ -38,12 +40,7 @@ export interface BuildDeps {
   workerDeps: BuildWorkerDeps;
 }
 
-export class BuildPreflightError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'BuildPreflightError';
-  }
-}
+export { BuildPreflightError } from './errors.js';
 
 function defaultRunAgent(
   opts: Parameters<BuildWorkerDeps['runAgent']>[0],
@@ -257,6 +254,8 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   }
 
   await runBuildPreflight(projectRoot, deps.doctorDeps);
+  runTeamCommsPreflight(projectRoot, ref.runDir, { requireHandoffs: false });
+  assertNoBlockingConflicts(ref.runDir);
 
   const nodes = loadIssuePlan(ref.runDir);
   const ordered = topologicalOrder(nodes);
@@ -351,11 +350,14 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
     }
 
     await executeWave(waveIssues, waveCtx);
+    assertNoBlockingConflicts(ref.runDir);
     if (build.review_status === 'pending') {
       break;
     }
   }
 
+  assertNoBlockingConflicts(ref.runDir);
+  runTeamCommsPreflight(projectRoot, ref.runDir, { requireHandoffs: true });
   build = evaluateBuildGoalComplete(build);
   const awaitingReview = build.review_status === 'pending';
   const finalStatus = build.goal_complete ? 'complete' : awaitingReview ? 'paused' : 'running';

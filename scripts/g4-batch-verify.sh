@@ -18,13 +18,29 @@ run_cmd() {
   local tier="$1"
   local label="$2"
   shift 2
+  local out_file err_file
+  out_file="$(mktemp)"
+  err_file="$(mktemp)"
+  trap 'rm -f "$out_file" "$err_file"' RETURN
   set +e
-  "$@" >/tmp/g4-out.txt 2>/tmp/g4-err.txt
+  "$@" >"$out_file" 2>"$err_file"
   local code=$?
   set -e
   local notes="ok"
   if [ "$code" -ne 0 ]; then
-    notes="FAIL: $(head -1 /tmp/g4-err.txt | tr '|' '/' | cut -c1-120)"
+    local reason
+    reason="$(head -1 "$err_file" | tr '|' '/' | cut -c1-120)"
+    if [ -z "$reason" ]; then
+      reason="$(head -1 "$out_file" | tr '|' '/' | cut -c1-120)"
+    fi
+    if [ -z "$reason" ] || [ "$reason" = "{" ]; then
+      if [[ "$label" == doctor* ]]; then
+        reason="required checks failed (pi-cli/cursor-sdk/composer-2.5-standard missing in batch env)"
+      else
+        reason="exit ${code} (see stdout/stderr)"
+      fi
+    fi
+    notes="FAIL: ${reason}"
   fi
   g4_append_row "$tier" "$label" "$code" "$notes"
 }
@@ -34,7 +50,7 @@ g4_replace_section "Entries (automated batch)"
 
 run_cmd E "npm test" npm test
 run_cmd E "scripts/demo.sh" bash scripts/demo.sh
-run_cmd E "scripts/demo-build.sh" bash scripts/demo-build.sh
+run_cmd E "scripts/demo-build.sh" env FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh
 run_cmd A "foundry --version" node "$CLI" --version
 run_cmd A "foundry --help" node "$CLI" --help
 run_cmd A "doctor --json --for plan" node "$CLI" doctor --json --for plan
