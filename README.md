@@ -1,5 +1,7 @@
 # Foundry
 
+**Agent entrypoint:** [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md) then [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md).
+
 Foundry is a planning-first Pi setup/runtime that uses Cursor Composer 2.5 as the v1 model and adds deterministic setup checks, structured planning, and approval-aware multi-agent workflows.
 
 ## Environment
@@ -115,9 +117,12 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for Pi, Cursor, Composer,
 
 ## Current Status
 
-**Shipped on `main`:** V1 (#1–#8), V2 (#11–#20), and V3 (#21–#30) — planning, publish, and serial build with proofs. Verified: `npm test` (156+ pass @ `0fbd325`).
+Verified 2026-05-25 (recovery pass):
 
-**Open work:** V4 (#31–#40) and V5 (#41–#50). Canonical tracker: [issues #31–#50](https://github.com/kartikkabadi/foundry/issues?q=is%3Aissue+is%3Aopen). Code↔test map: [VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md).
+- **PR #103 merged** on `main` (`cf1e30c`; tracker reconciled at `09eb047`).
+- **219/219 tests** pass; `scripts/demo.sh` and `FOUNDRY_BUILD_MOCK=1 scripts/demo-build.sh` exit 0.
+- **Open issues (narrowed):** #32, #34, #37, #42–#48, #50. Closed via PR #103: #31, #33, #35, #36, #38–#41, #49 — do not rebuild.
+- **SSOT:** [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md) · [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md)
 
 **Repo alignment (2026-05):**
 

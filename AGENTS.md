@@ -27,7 +27,7 @@ Single-context; planning spec in `docs/planning/`. See `docs/agents/domain.md`.
 - Plan Mode stops for explicit approval before any Build Mode. Autonomy contract (safe/productive/custom) front-loaded for long runs.
 - Artifacts are drafts until approved. Issues are execution commitments. Every issue needs scaled proof (tests, screenshots, citations, etc.).
 - Follow the 10-question intent interview policy (product-boundary questions only after exploration; agents resolve impl details via repo inspection + conventions unless intent/irreversible/public/cost/safety/autonomy impact).
-- Use git worktrees for parallel independent work (orchestrator reviews/merges; workers never merge themselves).
+- Use git worktrees for parallel independent work (orchestrator reviews/merges; workers never merge themselves). **Max one spare worktree** besides `main`. Do **not** build in `foundry-integration` or `foundry-agent-phase-*` — merged via PR #103. Start from `origin/main` ≥ `09eb047`; read [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md) first.
 - Smallest change for real feedback. Delete before add. Verify facts live (source/docs/tests/logs/runtime).
 - No secrets in committed artifacts or code. Use ~/.foundry/ for machine state, <repo>/.foundry/ for project/run state (never commit actual approvals to public repos).
 
