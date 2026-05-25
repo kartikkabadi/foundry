@@ -63,8 +63,14 @@ export function loadTeamSpecFromProject(projectRoot: string): TeamSpec | null {
 
   const raw = parseTomlWithLineContext(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
   const team = raw.team;
-  if (!team || typeof team !== 'object') {
+  if (team === undefined || team === null) {
     return null;
+  }
+  if (typeof team !== 'object' || Array.isArray(team)) {
+    throw new TeamSpecValidationError(
+      'project config [team] must be a table',
+      ['team: expected object table'],
+    );
   }
 
   const section = team as Record<string, unknown>;

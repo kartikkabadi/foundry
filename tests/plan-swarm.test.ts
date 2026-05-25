@@ -41,26 +41,30 @@ describe('plan swarm (#32)', () => {
 
   it('writes per-branch artifacts under swarm/', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-swarm-art-'));
-    initProject(projectRoot);
-    const ref = createRun(projectRoot, '0.1.0', {
-      mode: 'plan',
-      budget: 'deep',
-      phase: 'research',
-      status: 'running',
-      agent_pass_budget: { max_active: 2, used: 0, limit: 20 },
-      next_actions: [],
-    });
+    try {
+      initProject(projectRoot);
+      const ref = createRun(projectRoot, '0.1.0', {
+        mode: 'plan',
+        budget: 'deep',
+        phase: 'research',
+        status: 'running',
+        agent_pass_budget: { max_active: 2, used: 0, limit: 20 },
+        next_actions: [],
+      });
 
-    await runResearchSwarm(ref, {
-      idea: 'topic',
-      branchCount: 2,
-      runSwarm: async (branchId) => ({
-        branchId,
-        citation: `https://example.com/${branchId}`,
-        summary: `Findings ${branchId}`,
-      }),
-    });
+      await runResearchSwarm(ref, {
+        idea: 'topic',
+        branchCount: 2,
+        runSwarm: async (branchId) => ({
+          branchId,
+          citation: `https://example.com/${branchId}`,
+          summary: `Findings ${branchId}`,
+        }),
+      });
 
-    assert.ok(fs.existsSync(path.join(ref.runDir, 'swarm', 'swarm-2.md')));
+      assert.ok(fs.existsSync(path.join(ref.runDir, 'swarm', 'swarm-2.md')));
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   });
 });

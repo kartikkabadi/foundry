@@ -18,6 +18,7 @@ export interface SwarmResearchOptions {
   runSwarm: (branchId: string, idea: string) => Promise<SwarmBranchResult>;
 }
 
+/** Run parallel research branches and merge citations into research.md. */
 export async function runResearchSwarm(
   ref: RunRef,
   options: SwarmResearchOptions,
@@ -33,14 +34,6 @@ export async function runResearchSwarm(
     });
 
     const result = await options.runSwarm(branchId, options.idea);
-
-    appendEvent(ref.runDir, {
-      type: 'artifact_published',
-      phase: 'swarm_research',
-      summary: `Swarm branch ${branchId} published citation`,
-      artifact: `swarm/${branchId}.md`,
-      thread: 'research.md',
-    });
 
     return result;
   };
@@ -72,7 +65,8 @@ export async function runResearchSwarm(
 
   mkdirSync(join(ref.runDir, 'swarm'), { recursive: true });
   for (const branch of branches) {
-    writeArtifact(ref.runDir, `swarm/${branch.branchId}.md`, [
+    const artifactPath = `swarm/${branch.branchId}.md`;
+    writeArtifact(ref.runDir, artifactPath, [
       `# ${branch.branchId}`,
       '',
       `**Citation:** ${branch.citation}`,
@@ -80,6 +74,13 @@ export async function runResearchSwarm(
       branch.summary,
       '',
     ].join('\n'));
+    appendEvent(ref.runDir, {
+      type: 'artifact_published',
+      phase: 'swarm_research',
+      summary: `Swarm branch ${branch.branchId} published citation`,
+      artifact: artifactPath,
+      thread: 'research.md',
+    });
   }
 
   return { ref, mergedMd, branches };

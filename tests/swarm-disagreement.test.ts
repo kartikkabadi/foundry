@@ -19,4 +19,16 @@ describe('swarm disagreement (#37)', () => {
     ]);
     assert.strictEqual(result, null);
   });
+
+  it('returns null when opposing phrases appear in the same branch summary', () => {
+    const result = detectSwarmDisagreement([
+      {
+        branchId: 'a',
+        citation: 'x',
+        summary: 'mobile-only and desktop-first are both mentioned here',
+      },
+      { branchId: 'b', citation: 'y', summary: 'neutral findings' },
+    ]);
+    assert.strictEqual(result, null);
+  });
 });

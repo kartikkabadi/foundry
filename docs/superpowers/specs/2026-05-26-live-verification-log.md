@@ -56,17 +56,19 @@
 
 
 
-## Entries (automated batch) 2026-05-25T14:18Z
+
+
+## Entries (automated batch) 2026-05-25T14:40Z
 
 | Tier | Command | Exit | Artifacts / notes |
 |------|---------|------|-------------------|
 | E | `npm test` | 0 | ok |
 | E | `scripts/demo.sh` | 0 | ok |
-| E | `scripts/demo-build.sh` | 1 | FAIL: foundry build: Build preflight failed (doctor --for build). |
+| E | `scripts/demo-build.sh` | 0 | ok |
 | A | `foundry --version` | 0 | ok |
 | A | `foundry --help` | 0 | ok |
-| A | `doctor --json --for plan` | 1 | FAIL:  |
-| A | `doctor --json --for build` | 1 | FAIL:  |
+| A | `doctor --json --for plan` | 1 | FAIL: required checks failed (pi-cli/cursor-sdk/composer-2.5-standard missing in batch env) |
+| A | `doctor --json --for build` | 1 | FAIL: required checks failed (pi-cli/cursor-sdk/composer-2.5-standard missing in batch env) |
 | A | `foundry init` | 0 | ok |
 | A | `foundry plan (live)` | — | see Entries (live phased) |
 | A | `foundry build (live)` | — | see Entries (live phased) |

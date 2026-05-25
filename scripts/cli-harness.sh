@@ -11,15 +11,20 @@ SESSION="foundry-cli-harness-$$"
 WORK="$(mktemp -d)"
 trap 'tmux kill-session -t "$SESSION" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
-tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "$SESSION" -c "$WORK" -- bash -l
+TMUX_CMD=(tmux)
+if [ -f /exec-daemon/tmux.portal.conf ]; then
+  TMUX_CMD=(tmux -f /exec-daemon/tmux.portal.conf)
+fi
+
+"${TMUX_CMD[@]}" new-session -d -s "$SESSION" -c "$WORK" -- bash -l
 
 send() {
-  tmux -f /exec-daemon/tmux.portal.conf send-keys -t "$SESSION:0.0" "$1" C-m
+  "${TMUX_CMD[@]}" send-keys -t "$SESSION:0.0" "$1" C-m
   sleep 0.6
 }
 
 capture() {
-  tmux -f /exec-daemon/tmux.portal.conf capture-pane -pt "$SESSION:0.0" -S -200 | tail -n 120
+  "${TMUX_CMD[@]}" capture-pane -pt "$SESSION:0.0" -S -200 | tail -n 120
 }
 
 echo "==> harness session $SESSION in $WORK"

@@ -254,7 +254,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   }
 
   await runBuildPreflight(projectRoot, deps.doctorDeps);
-  runTeamCommsPreflight(projectRoot, ref.runDir);
+  runTeamCommsPreflight(projectRoot, ref.runDir, { requireHandoffs: false });
   assertNoBlockingConflicts(ref.runDir);
 
   const nodes = loadIssuePlan(ref.runDir);
@@ -357,6 +357,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   }
 
   assertNoBlockingConflicts(ref.runDir);
+  runTeamCommsPreflight(projectRoot, ref.runDir, { requireHandoffs: true });
   build = evaluateBuildGoalComplete(build);
   const awaitingReview = build.review_status === 'pending';
   const finalStatus = build.goal_complete ? 'complete' : awaitingReview ? 'paused' : 'running';

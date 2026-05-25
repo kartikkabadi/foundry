@@ -11,7 +11,11 @@ export interface SwarmDisagreement {
   prd_section: string;
 }
 
-/** Detect opposing recommendations across swarm branch summaries. */
+function branchIndexWithPhrase(summaries: string[], phrase: string): number {
+  return summaries.findIndex((s) => s.includes(phrase));
+}
+
+/** Detect opposing recommendations across different swarm branch summaries. */
 export function detectSwarmDisagreement(branches: SwarmBranchResult[]): SwarmDisagreement | null {
   if (branches.length < 2) {
     return null;
@@ -20,9 +24,9 @@ export function detectSwarmDisagreement(branches: SwarmBranchResult[]): SwarmDis
   const summaries = branches.map((b) => b.summary.toLowerCase());
 
   for (const [a, b] of DISAGREEMENT_PAIRS) {
-    const hasA = summaries.some((s) => s.includes(a));
-    const hasB = summaries.some((s) => s.includes(b));
-    if (hasA && hasB) {
+    const indexA = branchIndexWithPhrase(summaries, a);
+    const indexB = branchIndexWithPhrase(summaries, b);
+    if (indexA >= 0 && indexB >= 0 && indexA !== indexB) {
       return {
         summary: `Swarm branches disagree on approach (${a} vs ${b}). Orchestrator must resolve before build.`,
         prd_section: 'prd.md#scope',
