@@ -1,6 +1,6 @@
 # Foundry
 
-**Agent entrypoint:** [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md) then [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md).
+**Agents:** read [docs/agents/README.md](docs/agents/README.md); use [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md) to confirm an issue row.
 
 Foundry is a planning-first Pi setup/runtime that uses Cursor Composer 2.5 as the v1 model and adds deterministic setup checks, structured planning, and approval-aware multi-agent workflows.
 
@@ -122,7 +122,7 @@ Verified 2026-05-25 (recovery pass):
 - **PR #103 merged** on `main` (`cf1e30c`; tracker reconciled at `09eb047`).
 - **219/219 tests** pass; `scripts/demo.sh` and `FOUNDRY_BUILD_MOCK=1 scripts/demo-build.sh` exit 0.
 - **Open issues (narrowed):** #32, #34, #37, #42–#48, #50. Closed via PR #103: #31, #33, #35, #36, #38–#41, #49 — do not rebuild.
-- **SSOT:** [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md) · [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md)
+- **Agents:** [docs/agents/README.md](docs/agents/README.md) · **Issue SSOT:** [docs/planning/VERIFIED_STATE.md](docs/planning/VERIFIED_STATE.md)
 
 **Repo alignment (2026-05):**
 

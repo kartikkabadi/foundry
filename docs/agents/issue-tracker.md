@@ -25,19 +25,14 @@ Run `gh issue view <number> --comments`.
 
 Published issues #1–#8 with full AC live in `docs/planning/GITHUB_ISSUE_BREAKDOWN.md` (GitHub issue bodies may be truncated).
 
-## V2–V5 tracker (canonical #11–#50)
+## Live queue (2026-05-25, post–PR #103)
 
-Duplicates **#51–#90** are closed; use canonical numbers only.
+Confirm on GitHub before starting. Full issue→code rows: [VERIFIED_STATE.md](../planning/VERIFIED_STATE.md).
 
-| Slice | Issues | Status on `main` |
-|-------|--------|------------------|
-| V2 | [#11](https://github.com/kartikkabadi/foundry/issues/11)–[#20](https://github.com/kartikkabadi/foundry/issues/20) | Closed — merged |
-| V3 Build | [#21](https://github.com/kartikkabadi/foundry/issues/21)–[#30](https://github.com/kartikkabadi/foundry/issues/30) | Closed on GitHub — code on `main` via PR [#98](https://github.com/kartikkabadi/foundry/pull/98); re-close with evidence after G4 production-truth |
-| V4 Orchestration | [#31](https://github.com/kartikkabadi/foundry/issues/31)–[#40](https://github.com/kartikkabadi/foundry/issues/40) | **Open** — `blocked:g4-production-truth` removed after production-truth sign-off (`main` @ `ecaf87b`) |
-| V5 Product | [#41](https://github.com/kartikkabadi/foundry/issues/41)–[#50](https://github.com/kartikkabadi/foundry/issues/50) | **Open** |
+| Track | Issues | Agent rule |
+|-------|--------|------------|
+| **Open for new work** | [#32](https://github.com/kartikkabadi/foundry/issues/32), [#34](https://github.com/kartikkabadi/foundry/issues/34), [#37](https://github.com/kartikkabadi/foundry/issues/37), [#42](https://github.com/kartikkabadi/foundry/issues/42)–[#48](https://github.com/kartikkabadi/foundry/issues/48), [#50](https://github.com/kartikkabadi/foundry/issues/50) | Pick **exactly one** per session |
+| **Closed via PR #103 (do not re-implement)** | [#31](https://github.com/kartikkabadi/foundry/issues/31), [#33](https://github.com/kartikkabadi/foundry/issues/33), [#35](https://github.com/kartikkabadi/foundry/issues/35), [#36](https://github.com/kartikkabadi/foundry/issues/36), [#38](https://github.com/kartikkabadi/foundry/issues/38)–[#41](https://github.com/kartikkabadi/foundry/issues/41), [#49](https://github.com/kartikkabadi/foundry/issues/49) | Code landed on `main` |
+| **Duplicates** | #51–#90 | Closed — ignore |
 
-**Canonical open work:** **#31–#50** only.
-
-Alignment audit (AC ↔ tests, blocked-by fixes): `docs/planning/TRACKER_ALIGNMENT_2026-05-26.md`.
-
-Closed V2 work (#11–#20) is complete on `main`; see `docs/planning/V2-V5_GITHUB_ISSUES.md` index table.
+Historical index: `docs/planning/V2-V5_GITHUB_ISSUES.md`. V1–V3 (#1–#30) are done on `main`.

@@ -6,7 +6,7 @@
 
 **Canonical open work after PR #103:** #32, #34, #37, #42–#48, #50. Duplicates #51–#90 are closed.
 
-**Related:** [TRACKER_ALIGNMENT_2026-05-26.md](TRACKER_ALIGNMENT_2026-05-26.md), [V2-V5_GITHUB_ISSUES.md](V2-V5_GITHUB_ISSUES.md), master plan Part A in `docs/superpowers/plans/2026-05-25-foundry-verified-master-plan.md`.
+**Related:** [V2-V5_GITHUB_ISSUES.md](V2-V5_GITHUB_ISSUES.md), [../agents/README.md](../agents/README.md), [../agents/issue-tracker.md](../agents/issue-tracker.md). Historical alignment snapshot: `docs/archive/TRACKER_ALIGNMENT_2026-05-26.md` (pre–PR #103).
 
 ---
 

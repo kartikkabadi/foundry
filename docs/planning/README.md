@@ -19,7 +19,7 @@ Status:
 
 - **PR #103 merged** on `main` (2026-05-25). **219/219** tests pass; demo scripts exit 0.
 - **Open issues:** #32, #34, #37, #42–#48, #50 only. Duplicates #51–#90 closed.
-- **Agent entry:** [AGENT_START_HERE.md](AGENT_START_HERE.md) · [VERIFIED_STATE.md](VERIFIED_STATE.md)
+- **Agents:** [../agents/README.md](../agents/README.md) · **Issue SSOT:** [VERIFIED_STATE.md](VERIFIED_STATE.md)
 - **First milestone achieved (alignment + docs)**: Clear separation documented + hygiene baseline started. See new "## Repo Alignment (2026-05, after user clarification)" section in DECISIONS.md.
 - **Pi Extension Pack (powerpack)** = pure guide-style + curated assets / whole Git repo (agent-feedable: "feed this repo to your agent..."). Canonical clone: `/Users/user/Projects/pi-composer-powerpack`. Stale Documents copy archived under `archive/pi-composer-powerpack-stale-v0.1.0-2026-05`. Not a "run this script" — copy-paste guide + assets for polished Pi + Composer 2.5 + multi-agent.
 - **Foundry (this repo)** = rock-solid, detailed, actual multi-agent planning/build runtime (V1 spec: doctor/setup/plan/build, Composer 2.5 exclusive, artifacts, autonomy). Local clone at documents/Projects/foundry.

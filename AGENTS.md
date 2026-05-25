@@ -6,19 +6,18 @@ Planning-first standalone TypeScript/Node CLI that configures and extends Pi int
 
 See full locked specs in `docs/planning/` (V1_PLAN.md, RUNNING_SPEC.md, DECISIONS.md). Vertical-slice issues #1–#8 with full acceptance criteria: `docs/planning/GITHUB_ISSUE_BREAKDOWN.md`.
 
+## Agent bootstrap
+
+Before picking work, read [docs/agents/README.md](docs/agents/README.md).
+
 ## Agent skills
 
-### Issue tracker
-
-GitHub issues on `kartikkabadi/foundry`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Canonical triage roles mapped to repo labels (`type:afk`, `type:hitl`, etc.). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context; planning spec in `docs/planning/`. See `docs/agents/domain.md`.
+| File | Role |
+|------|------|
+| [docs/agents/README.md](docs/agents/README.md) | Clone surface, verify commands, session rules |
+| [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) | `gh` CLI + live open-issue queue |
+| [docs/agents/domain.md](docs/agents/domain.md) | CONTEXT, planning spec, ADRs |
+| [docs/agents/triage-labels.md](docs/agents/triage-labels.md) | Label vocabulary |
 
 ## Working agreements (V1 spec + discipline)
 
@@ -27,7 +26,7 @@ Single-context; planning spec in `docs/planning/`. See `docs/agents/domain.md`.
 - Plan Mode stops for explicit approval before any Build Mode. Autonomy contract (safe/productive/custom) front-loaded for long runs.
 - Artifacts are drafts until approved. Issues are execution commitments. Every issue needs scaled proof (tests, screenshots, citations, etc.).
 - Follow the 10-question intent interview policy (product-boundary questions only after exploration; agents resolve impl details via repo inspection + conventions unless intent/irreversible/public/cost/safety/autonomy impact).
-- Use git worktrees for parallel independent work (orchestrator reviews/merges; workers never merge themselves). **Max one spare worktree** besides `main`. Do **not** build in `foundry-integration` or `foundry-agent-phase-*` — merged via PR #103. Start from `origin/main` ≥ `09eb047`; read [docs/planning/AGENT_START_HERE.md](docs/planning/AGENT_START_HERE.md) first.
+- Use git worktrees for parallel independent work (orchestrator reviews/merges; workers never merge themselves). **Max one spare worktree** besides `main`. Do **not** build in `foundry-integration` or `foundry-agent-phase-*` — merged via PR #103. Start from `origin/main` ≥ `09eb047`; read [docs/agents/README.md](docs/agents/README.md) first.
 - Smallest change for real feedback. Delete before add. Verify facts live (source/docs/tests/logs/runtime).
 - No secrets in committed artifacts or code. Use ~/.foundry/ for machine state, <repo>/.foundry/ for project/run state (never commit actual approvals to public repos).
 
