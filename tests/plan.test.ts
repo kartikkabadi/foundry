@@ -12,6 +12,7 @@ import {
 import { validateIntentCoverage } from '@foundry/planner/plan/coverage-slots.js';
 import { executePlan } from '@foundry/planner/plan/orchestrate.js';
 import { initProject } from '@foundry/core/state/run-writer.js';
+import { listOpenConflicts } from '@foundry/core/conflicts/conflict.js';
 import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import type { CursorAdapter } from '@foundry/adapters/cursor.js';
 
@@ -167,5 +168,43 @@ describe('plan orchestration (fake planner, no network)', () => {
       const content = fs.readFileSync(path.join(ref.runDir, file), 'utf8');
       assert.ok(!content.includes('test-key'), `${file} leaked API key`);
     }
+  });
+
+  it('marks approval blocked when swarm research records a conflict', async () => {
+    let researchCalls = 0;
+    const fakePrompt = async (prompt: string) => {
+      if (prompt.includes('research agent')) {
+        researchCalls += 1;
+        return researchCalls === 1
+          ? '# Research\nRecommend mobile-only scope.'
+          : '# Research\nRecommend desktop-first scope.';
+      }
+      if (prompt.includes('intent interview')) return buildFakeIntent();
+      if (prompt.includes('Algorithm Pass agent')) return buildFakeAlgorithmPass();
+      if (prompt.includes('synthesis agent')) return buildFakeSynthesis();
+      return 'ok';
+    };
+
+    const ref = await executePlan({
+      idea: 'CLI that converts markdown PRDs to GitHub issues',
+      projectRoot,
+      swarmResearch: true,
+      deps: {
+        doctorDeps: mockDoctorDeps(projectRoot),
+        promptAgent: fakePrompt,
+        isTTY: false,
+        cannedIntakeAnswers: ['Devs', 'Slow PRD-to-issue workflow', 'One-command CLI'],
+      },
+    });
+
+    const openConflicts = listOpenConflicts(ref.runDir);
+    assert.strictEqual(openConflicts.length, 1);
+    assert.strictEqual(openConflicts[0]?.id, 'swarm-disagreement');
+    assert.deepStrictEqual(ref.run.blocked_actions, ['approve', 'build', 'publish issues']);
+    assert.match(ref.run.next_actions[0] ?? '', /Resolve open conflicts/);
+
+    const status = fs.readFileSync(path.join(ref.runDir, 'status.md'), 'utf8');
+    assert.match(status, /swarm-disagreement/);
+    assert.match(status, /approve/);
   });
 });
