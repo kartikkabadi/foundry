@@ -20,7 +20,7 @@ describe('swarm disagreement (#37)', () => {
     assert.strictEqual(result, null);
   });
 
-  it('returns null when opposing phrases appear in the same branch summary', () => {
+  it('returns null when opposing phrases appear only in the same branch summary', () => {
     const result = detectSwarmDisagreement([
       {
         branchId: 'a',
@@ -30,5 +30,19 @@ describe('swarm disagreement (#37)', () => {
       { branchId: 'b', citation: 'y', summary: 'neutral findings' },
     ]);
     assert.strictEqual(result, null);
+  });
+
+  it('detects disagreement when one branch has both phrases but others split', () => {
+    const result = detectSwarmDisagreement([
+      {
+        branchId: 'a',
+        citation: 'x',
+        summary: 'mobile-only and desktop-first combined in one note',
+      },
+      { branchId: 'b', citation: 'y', summary: 'Recommend mobile-only MVP' },
+      { branchId: 'c', citation: 'z', summary: 'Prefer desktop-first delivery' },
+    ]);
+    assert.ok(result);
+    assert.match(result!.summary, /disagree/i);
   });
 });

@@ -18,16 +18,20 @@ run_cmd() {
   local tier="$1"
   local label="$2"
   shift 2
+  local out_file err_file
+  out_file="$(mktemp)"
+  err_file="$(mktemp)"
+  trap 'rm -f "$out_file" "$err_file"' RETURN
   set +e
-  "$@" >/tmp/g4-out.txt 2>/tmp/g4-err.txt
+  "$@" >"$out_file" 2>"$err_file"
   local code=$?
   set -e
   local notes="ok"
   if [ "$code" -ne 0 ]; then
     local reason
-    reason="$(head -1 /tmp/g4-err.txt | tr '|' '/' | cut -c1-120)"
+    reason="$(head -1 "$err_file" | tr '|' '/' | cut -c1-120)"
     if [ -z "$reason" ]; then
-      reason="$(head -1 /tmp/g4-out.txt | tr '|' '/' | cut -c1-120)"
+      reason="$(head -1 "$out_file" | tr '|' '/' | cut -c1-120)"
     fi
     if [ -z "$reason" ] || [ "$reason" = "{" ]; then
       if [[ "$label" == doctor* ]]; then
