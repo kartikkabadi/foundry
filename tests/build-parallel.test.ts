@@ -68,4 +68,13 @@ describe('computeBuildWaves (V4-1)', () => {
     assert.deepStrictEqual(waves[0], [1]);
     assert.deepStrictEqual(waves[1], [2]);
   });
+
+  it('skips issues already in completed set (resume mid-build)', () => {
+    const nodes: IssuePlanNode[] = [
+      { number: 1, title: 'First', type: 'code', blocked_by: [], body: 'Paths: a/' },
+      { number: 2, title: 'Second', type: 'docs', blocked_by: [1], body: 'Paths: b/' },
+    ];
+    const waves = computeBuildWaves(nodes, { maxParallel: 1, completed: new Set([1]) });
+    assert.deepStrictEqual(waves, [[2]]);
+  });
 });

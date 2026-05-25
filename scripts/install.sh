@@ -8,6 +8,10 @@ INSTALL_DIR="${FOUNDRY_INSTALL_DIR:-${HOME}/.local/share/foundry}"
 
 echo "Installing Foundry from ${REPO} (${BRANCH}) into ${INSTALL_DIR}"
 
+if command -v npm >/dev/null 2>&1 && [ "${FOUNDRY_INSTALL_VIA_NPM:-}" = "1" ]; then
+  echo "FOUNDRY_INSTALL_VIA_NPM=1 — prefer: npm install -g foundry (when published)"
+fi
+
 if [ ! -d "$INSTALL_DIR/.git" ]; then
   git clone --branch "$BRANCH" --depth 1 "$REPO" "$INSTALL_DIR"
 else

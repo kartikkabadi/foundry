@@ -1,0 +1,14 @@
+version = 1
+name = "fixture-team"
+
+[[roles]]
+id = "researcher"
+reports_to = "lead"
+must_publish = true
+handoff_artifact = "handoff.md"
+capabilities = ["research"]
+
+[[roles]]
+id = "lead"
+must_publish = false
+capabilities = ["orchestration"]

@@ -70,6 +70,33 @@ describe('package boundaries (V2-10)', () => {
     assert.deepStrictEqual(violations, []);
   });
 
+  it('adapters must not import planner', () => {
+    const adaptersSrc = path.join(ROOT, 'packages', 'adapters', 'src');
+    const violations = findForbiddenImports(
+      adaptersSrc,
+      /@foundry\/planner|packages\/planner|\.\.\/planner|\.\.\/\.\.\/planner/,
+    );
+    assert.deepStrictEqual(violations, []);
+  });
+
+  it('doctor must not import planner', () => {
+    const doctorSrc = path.join(ROOT, 'packages', 'doctor', 'src');
+    const violations = findForbiddenImports(
+      doctorSrc,
+      /@foundry\/planner|packages\/planner|\.\.\/planner|\.\.\/\.\.\/planner/,
+    );
+    assert.deepStrictEqual(violations, []);
+  });
+
+  it('core must not import adapters', () => {
+    const coreSrc = path.join(ROOT, 'packages', 'core', 'src');
+    const violations = findForbiddenImports(
+      coreSrc,
+      /@foundry\/adapters|packages\/adapters|\.\.\/adapters|\.\.\/\.\.\/adapters/,
+    );
+    assert.deepStrictEqual(violations, []);
+  });
+
   it('bin entry resolves to cli package build output', () => {
     const rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
       bin?: Record<string, string>;

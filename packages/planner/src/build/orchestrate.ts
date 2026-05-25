@@ -6,8 +6,9 @@ import { runDoctorChecks } from '@foundry/doctor/run.js';
 import { isMockBuild, resolveModePreflightChecks } from '@foundry/doctor/preflight-options.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import type { BuildState, IssuePlanNode, ProofRecord } from '@foundry/core/types/build.js';
-import type { RunRef } from '@foundry/core/state/run-store.js';
-import { updateRunStatus, writeRunState } from '@foundry/core/state/run-store.js';
+import { assertApproved, GateError } from '@foundry/core/gates.js';
+import type { RunRef } from '@foundry/core/state/run-writer.js';
+import { updateRunStatus, writeRunState } from '@foundry/core/state/run-writer.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import {
   depsSatisfied,
@@ -120,14 +121,139 @@ export function nextPendingIssue(
   return null;
 }
 
+function mergeWorkerBuild(base: BuildState, workerResult: Awaited<ReturnType<typeof executeIssueWorker>>): BuildState {
+  return {
+    ...workerResult.build,
+    issues: base.issues.map((entry) => {
+      const updated = workerResult.build.issues.find((i) => i.number === entry.number);
+      return updated && workerResult.issue.number === entry.number ? updated : entry;
+    }),
+    deferred: base.deferred,
+    current_issue: workerResult.build.current_issue,
+    review_status: workerResult.build.review_status ?? base.review_status,
+    goal_complete: base.goal_complete,
+  };
+}
+
+function recordWorkerProof(
+  runDir: string,
+  issueNumber: number,
+  proofPath: string,
+  waveLabel: string,
+): ProofRecord {
+  const proofPayload = readProofJson(proofPath);
+  appendEvent(runDir, {
+    type: 'artifact_published',
+    phase: 'build_executing',
+    summary: `Issue #${issueNumber} proof recorded${waveLabel}`,
+    artifact: proofPath,
+  });
+  return toProofRecord(proofPath, proofPayload);
+}
+
+/** Run one wave of issue workers (serial when wave length is 1). */
+async function executeWave(
+  issues: IssuePlanNode[],
+  ctx: {
+    projectRoot: string;
+    runDir: string;
+    deps: BuildDeps;
+    getBuild: () => BuildState;
+    setBuild: (build: BuildState) => void;
+    getProofs: () => ProofRecord[];
+    setProofs: (proofs: ProofRecord[]) => void;
+    getCurrentRef: () => RunRef;
+    setCurrentRef: (ref: RunRef) => void;
+  },
+): Promise<void> {
+  if (issues.length === 0) {
+    return;
+  }
+
+  const waveLabel = issues.length > 1 ? ' (wave)' : '';
+
+  if (issues.length === 1) {
+    const issue = issues[0]!;
+    let build: BuildState = { ...ctx.getBuild(), current_issue: issue.number };
+    const workerResult = await executeIssueWorker({
+      projectRoot: ctx.projectRoot,
+      runDir: ctx.runDir,
+      issue,
+      build,
+      deps: ctx.deps.workerDeps,
+    });
+    build = workerResult.build;
+    const proof = recordWorkerProof(ctx.runDir, issue.number, workerResult.proofPath, waveLabel);
+    const proofs = [...ctx.getProofs(), proof];
+    ctx.setBuild(build);
+    ctx.setProofs(proofs);
+    const written = writeRunState({
+      ...ctx.getCurrentRef(),
+      run: {
+        ...ctx.getCurrentRef().run,
+        mode: 'build',
+        phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
+        build,
+        proofs,
+        next_actions: [`Completed issue #${issue.number}`, formatBuildSummary(build)],
+      },
+    });
+    ctx.setCurrentRef({ ...ctx.getCurrentRef(), run: written });
+    return;
+  }
+
+  let build = ctx.getBuild();
+  const results = await Promise.all(
+    issues.map(async (issue) => {
+      const snapshot = structuredClone(build);
+      return executeIssueWorker({
+        projectRoot: ctx.projectRoot,
+        runDir: ctx.runDir,
+        issue,
+        build: snapshot,
+        deps: ctx.deps.workerDeps,
+      });
+    }),
+  );
+
+  for (const workerResult of results) {
+    build = mergeWorkerBuild(build, workerResult);
+    const proof = recordWorkerProof(
+      ctx.runDir,
+      workerResult.issue.number,
+      workerResult.proofPath,
+      waveLabel,
+    );
+    ctx.setProofs([...ctx.getProofs(), proof]);
+  }
+
+  ctx.setBuild(build);
+  const proofs = ctx.getProofs();
+  const written = writeRunState({
+    ...ctx.getCurrentRef(),
+    run: {
+      ...ctx.getCurrentRef().run,
+      mode: 'build',
+      phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
+      build,
+      proofs,
+      next_actions: [formatBuildSummary(build)],
+    },
+  });
+  ctx.setCurrentRef({ ...ctx.getCurrentRef(), run: written });
+}
+
 export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef> {
   const { projectRoot, ref, dryRun = false, deferIssueNumber } = options;
   const deps = createDefaultBuildDeps(options.deps);
 
-  if (ref.run.status !== 'approved' && ref.run.status !== 'running' && ref.run.status !== 'paused') {
-    throw new BuildPreflightError(
-      `Cannot build run in status "${ref.run.status}". Approve the plan first.`,
-    );
+  try {
+    assertApproved(ref.run);
+  } catch (error) {
+    if (error instanceof GateError) {
+      throw new BuildPreflightError(error.message);
+    }
+    throw error;
   }
 
   await runBuildPreflight(projectRoot, deps.doctorDeps);
@@ -179,117 +305,54 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
 
   const byNumber = new Map(nodes.map((n) => [n.number, n]));
 
-  async function runIssueWorker(issue: IssuePlanNode): Promise<void> {
-    build = { ...build, current_issue: issue.number };
+  const waveCtx = {
+    projectRoot,
+    runDir: ref.runDir,
+    deps,
+    getBuild: () => build,
+    setBuild: (next: BuildState) => {
+      build = next;
+    },
+    getProofs: () => proofs,
+    setProofs: (next: ProofRecord[]) => {
+      proofs = next;
+    },
+    getCurrentRef: () => currentRef,
+    setCurrentRef: (next: RunRef) => {
+      currentRef = next;
+    },
+  };
 
-    const workerResult = await executeIssueWorker({
-      projectRoot,
-      runDir: ref.runDir,
-      issue,
-      build,
-      deps: deps.workerDeps,
-    });
-
-    build = workerResult.build;
-    const proofPayload = readProofJson(workerResult.proofPath);
-    proofs = [...proofs, toProofRecord(workerResult.proofPath, proofPayload)];
-
-    appendEvent(ref.runDir, {
-      type: 'artifact_published',
-      phase: 'build_executing',
-      summary: `Issue #${issue.number} proof recorded`,
-      artifact: workerResult.proofPath,
-    });
-
-    const written = writeRunState({
-      ...currentRef,
-      run: {
-        ...currentRef.run,
-        mode: 'build',
-        phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
-        build,
-        proofs,
-        next_actions: [`Completed issue #${issue.number}`, formatBuildSummary(build)],
-      },
-    });
-    currentRef = { ...currentRef, run: written };
-  }
-
-  if (parallel <= 1) {
-    while (true) {
-      const pending = nextPendingIssue(build, ordered);
-      if (!pending) {
-        break;
-      }
-      await runIssueWorker(pending);
-    }
-  } else {
+  while (true) {
     const completed = new Set(
       build.issues.filter((i) => i.status === 'completed').map((i) => i.number),
     );
-    const waves = computeBuildWaves(nodes, { maxParallel: parallel, completed });
-    for (const wave of waves) {
-      const pendingNums = wave.filter((num) => {
-        const state = build.issues.find((i) => i.number === num);
+    const nextWave = computeBuildWaves(nodes, { maxParallel: parallel, completed })[0];
+    if (!nextWave?.length) {
+      break;
+    }
+
+    const waveIssues = nextWave
+      .map((num) => byNumber.get(num))
+      .filter((node): node is IssuePlanNode => {
+        if (!node) {
+          return false;
+        }
+        const state = build.issues.find((i) => i.number === node.number);
         return (
           state?.status === 'pending' &&
-          !build.deferred.includes(num) &&
-          depsSatisfied(build, byNumber.get(num)!)
+          !build.deferred.includes(node.number) &&
+          depsSatisfied(build, node)
         );
       });
-      if (pendingNums.length === 0) {
-        continue;
-      }
-      await Promise.all(
-        pendingNums.map(async (num) => {
-          const node = byNumber.get(num);
-          if (!node) {
-            return;
-          }
-          const snapshot = structuredClone(build);
-          const workerResult = await executeIssueWorker({
-            projectRoot,
-            runDir: ref.runDir,
-            issue: node,
-            build: snapshot,
-            deps: deps.workerDeps,
-          });
-          build = {
-            ...workerResult.build,
-            issues: build.issues.map((entry) => {
-              const updated = workerResult.build.issues.find((i) => i.number === entry.number);
-              return updated && workerResult.issue.number === entry.number ? updated : entry;
-            }),
-            deferred: build.deferred,
-            current_issue: workerResult.build.current_issue,
-            review_status: workerResult.build.review_status ?? build.review_status,
-            goal_complete: build.goal_complete,
-          };
-          const proofPayload = readProofJson(workerResult.proofPath);
-          proofs = [...proofs, toProofRecord(workerResult.proofPath, proofPayload)];
-          appendEvent(ref.runDir, {
-            type: 'artifact_published',
-            phase: 'build_executing',
-            summary: `Issue #${num} proof recorded (wave)`,
-            artifact: workerResult.proofPath,
-          });
-        }),
-      );
-      const written = writeRunState({
-        ...currentRef,
-        run: {
-          ...currentRef.run,
-          mode: 'build',
-          phase: build.review_status === 'pending' ? 'build_review' : 'build_executing',
-          build,
-          proofs,
-          next_actions: [formatBuildSummary(build)],
-        },
-      });
-      currentRef = { ...currentRef, run: written };
-      if (build.review_status === 'pending') {
-        break;
-      }
+
+    if (waveIssues.length === 0) {
+      break;
+    }
+
+    await executeWave(waveIssues, waveCtx);
+    if (build.review_status === 'pending') {
+      break;
     }
   }
 

@@ -14,7 +14,12 @@ import {
   ALGORITHM_PASS_ARTIFACTS,
   REQUIRED_SYNTHESIS_ARTIFACTS,
 } from '@foundry/planner/plan/artifacts.js';
-import { executePlan, AgentPassBudgetExhaustedError } from '@foundry/planner/plan/orchestrate.js';
+import {
+  executePlan,
+  AgentPassBudgetExhaustedError,
+  AgentPassCheckpointError,
+  resumePlanFromCheckpoint,
+} from '@foundry/planner/plan/orchestrate.js';
 import { initProject } from '@foundry/core/state/run-writer.js';
 import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import type { CursorAdapter } from '@foundry/adapters/cursor.js';
@@ -113,6 +118,15 @@ describe('budget profiles (V2-6)', () => {
     const quick = agentPassBudgetFromProfile(BUDGET_PROFILES.quick);
     assert.deepStrictEqual(quick, { max_active: 5, used: 0, limit: 12 });
   });
+
+  it('checkpoint_interval_passes differ by profile', () => {
+    assert.strictEqual(BUDGET_PROFILES.quick.checkpoint_interval_passes, 2);
+    assert.strictEqual(BUDGET_PROFILES.marathon.checkpoint_interval_passes, 10);
+    assert.ok(
+      BUDGET_PROFILES.quick.checkpoint_interval_passes <
+        BUDGET_PROFILES.marathon.checkpoint_interval_passes,
+    );
+  });
 });
 
 describe('budget enforcement in orchestrate (V2-6)', () => {
@@ -175,16 +189,11 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
     initProject(marathonRoot);
 
     try {
-      const quickRef = await executePlan({
-        idea: 'quick limit',
-        projectRoot: quickRoot,
+      const { createRun } = await import('@foundry/core/state/run-writer.js');
+      const quickRef = createRun(quickRoot, '0.1.0', {
+        mode: 'plan',
         budget: 'quick',
-        deps: {
-          doctorDeps: mockDoctorDeps(quickRoot),
-          promptAgent: fullPlanPrompt(),
-          isTTY: false,
-          cannedIntakeAnswers: ['Users', 'Problem', 'Success'],
-        },
+        agent_pass_budget: agentPassBudgetFromProfile(BUDGET_PROFILES.quick),
       });
 
       const marathonRef = await executePlan({
@@ -208,11 +217,52 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
     }
   });
 
+  it('quick budget pauses at checkpoint interval before exhaustion', async () => {
+    const idea = 'checkpoint interval pause';
+    const { createRun } = await import('@foundry/core/state/run-writer.js');
+    let ref = createRun(projectRoot, '0.1.0', {
+      mode: 'plan',
+      budget: 'quick',
+      phase: 'interview',
+      status: 'paused',
+      agent_pass_budget: { max_active: 5, used: 1, limit: 12 },
+      artifacts: ['intake.md', 'research.md'],
+    });
+
+    fs.writeFileSync(
+      path.join(ref.runDir, 'intake.md'),
+      `# Intake\n\n**Idea:** ${idea}\n`,
+      'utf8',
+    );
+    fs.writeFileSync(path.join(ref.runDir, 'research.md'), '# Research\nFixture.', 'utf8');
+
+    await assert.rejects(
+      () =>
+        resumePlanFromCheckpoint({
+          projectRoot,
+          ref,
+          deps: {
+            doctorDeps: mockDoctorDeps(projectRoot),
+            promptAgent: async () => buildFakeIntent(),
+            isTTY: false,
+          },
+        }),
+      AgentPassCheckpointError,
+    );
+
+    const runJson = JSON.parse(
+      fs.readFileSync(path.join(ref.runDir, 'run.json'), 'utf8'),
+    ) as { status: string; agent_pass_budget: { used: number }; next_actions: string[] };
+    assert.strictEqual(runJson.status, 'paused');
+    assert.strictEqual(runJson.agent_pass_budget.used, 2);
+    assert.match(runJson.next_actions[0] ?? '', /checkpoint/i);
+  });
+
   it('executePlan records budget profile in run.json', async () => {
     const ref = await executePlan({
       idea: 'record budget',
       projectRoot,
-      budget: 'quick',
+      budget: 'deep',
       deps: {
         doctorDeps: mockDoctorDeps(projectRoot),
         promptAgent: fullPlanPrompt(),
@@ -221,7 +271,7 @@ describe('budget enforcement in orchestrate (V2-6)', () => {
       },
     });
 
-    assert.strictEqual(ref.run.budget, 'quick');
-    assert.strictEqual(ref.run.agent_pass_budget.limit, 12);
+    assert.strictEqual(ref.run.budget, 'deep');
+    assert.strictEqual(ref.run.agent_pass_budget.limit, 80);
   });
 });

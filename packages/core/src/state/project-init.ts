@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadTeamSpecFromFile, teamSpecToConfigSection } from '../team/spec.js';
 
 const DEFAULT_CONFIG = `# Foundry project config (v1)
 version = 1
@@ -30,6 +31,11 @@ export interface InitProjectResult {
   configPath: string;
   runsDir: string;
   createdConfig: boolean;
+  teamLoaded?: boolean;
+}
+
+export interface InitProjectOptions {
+  teamPackPath?: string;
 }
 
 export function getProjectFoundryDir(projectRoot: string): string {
@@ -50,7 +56,10 @@ export function assertProjectInitialized(projectRoot: string): void {
   }
 }
 
-export function initProject(projectRoot: string): InitProjectResult {
+export function initProject(
+  projectRoot: string,
+  options: InitProjectOptions = {},
+): InitProjectResult {
   const foundryDir = getProjectFoundryDir(projectRoot);
   const runsDir = getRunsDir(projectRoot);
   const configPath = join(foundryDir, 'config.toml');
@@ -58,10 +67,25 @@ export function initProject(projectRoot: string): InitProjectResult {
   mkdirSync(runsDir, { recursive: true });
 
   let createdConfig = false;
+  let teamLoaded = false;
+  let configBody = existsSync(configPath)
+    ? readFileSync(configPath, 'utf8')
+    : DEFAULT_CONFIG;
+
   if (!existsSync(configPath)) {
-    writeFileSync(configPath, DEFAULT_CONFIG, 'utf8');
     createdConfig = true;
   }
 
-  return { configPath, runsDir, createdConfig };
+  if (options.teamPackPath) {
+    const spec = loadTeamSpecFromFile(options.teamPackPath);
+    const teamSection = teamSpecToConfigSection(spec);
+    if (!configBody.includes('[team]')) {
+      configBody = `${configBody.trimEnd()}\n${teamSection}`;
+      teamLoaded = true;
+    }
+  }
+
+  writeFileSync(configPath, configBody, 'utf8');
+
+  return { configPath, runsDir, createdConfig, teamLoaded };
 }

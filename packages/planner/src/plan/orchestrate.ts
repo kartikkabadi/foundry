@@ -6,7 +6,10 @@ import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import { runDoctorChecks } from '@foundry/doctor/run.js';
 import { resolveModePreflightChecks } from '@foundry/doctor/preflight-options.js';
+import { createBrowserCaptureAdapter } from '@foundry/adapters/browser-capture.js';
 import { promptComposer } from '@foundry/adapters/cursor.js';
+import { LoopDetector } from '@foundry/core/loop/detection.js';
+import { appendEvent, appendThreadHandoff } from '@foundry/core/comms/events.js';
 import {
   agentPassBudgetFromProfile,
   DEFAULT_BUDGET,
@@ -31,10 +34,17 @@ import {
   DEFAULT_AUTONOMY_CONTRACT,
 } from './prompts.js';
 import { safeErrorMessage } from '@foundry/core/config/secrets.js';
-import { appendEvent, appendThreadHandoff } from '@foundry/core/comms/events.js';
+import { invokeAgentWithCheckpoint } from '../agent-invoke.js';
+import {
+  assertAgentPassBudgetAvailable,
+  AgentPassBudgetExhaustedError,
+  AgentPassCheckpointError,
+  evaluateAgentPassAfterIncrement,
+  recordLoopSignal,
+} from './agent-pass-policy.js';
+import { runResearchSwarm } from './swarm.js';
 import {
   createRun,
-  pauseRun,
   updateRunStatus,
   writeRunState,
   type RunRef,
@@ -43,24 +53,24 @@ import {
 const pkgPath = join(getMonorepoRoot(import.meta.url), 'package.json');
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
 
-export class AgentPassBudgetExhaustedError extends Error {
-  constructor(message = 'Agent-pass budget exhausted; run paused at checkpoint.') {
-    super(message);
-    this.name = 'AgentPassBudgetExhaustedError';
-  }
-}
+export { AgentPassBudgetExhaustedError, AgentPassCheckpointError } from './agent-pass-policy.js';
 
 export interface PlanDeps {
   doctorDeps: DoctorDeps;
   promptAgent: (prompt: string, cwd: string) => Promise<string>;
   isTTY: boolean;
   cannedIntakeAnswers?: string[];
+  browserCapture?: ReturnType<typeof createBrowserCaptureAdapter>;
+  loopDetector?: LoopDetector;
 }
 
 export interface ExecutePlanOptions {
   idea: string;
   projectRoot: string;
   budget?: RunBudget;
+  referenceUrl?: string;
+  swarmResearch?: boolean;
+  swarmBranches?: number;
   deps?: Partial<PlanDeps>;
 }
 
@@ -75,6 +85,7 @@ export function createDefaultPlanDeps(overrides: Partial<PlanDeps> = {}): PlanDe
     doctorDeps: createDefaultDeps(),
     promptAgent: promptComposer,
     isTTY: process.stdin.isTTY,
+    browserCapture: createBrowserCaptureAdapter(),
     ...overrides,
   };
 }
@@ -125,16 +136,25 @@ function incrementAgentPass(ref: RunRef): RunRef {
 async function consumeAgentPass(
   ref: RunRef,
   projectRoot: string,
+  phase: string,
+  deps: PlanDeps,
   fn: () => Promise<string>,
 ): Promise<{ ref: RunRef; result: string }> {
-  if (ref.run.agent_pass_budget.used >= ref.run.agent_pass_budget.limit) {
-    pauseRun(projectRoot, 'Agent-pass budget exhausted — resume with `foundry resume`');
-    throw new AgentPassBudgetExhaustedError();
-  }
+  assertAgentPassBudgetAvailable(ref, projectRoot);
 
-  const result = await fn();
-  const updatedRef = incrementAgentPass(ref);
-  return { ref: updatedRef, result };
+  const loopDetector =
+    deps.loopDetector ?? new LoopDetector({ budget: ref.run.budget });
+  recordLoopSignal(ref, projectRoot, phase, loopDetector);
+
+  const invoked = await invokeAgentWithCheckpoint({
+    ref,
+    projectRoot,
+    phase,
+    fn,
+  });
+  const updatedRef = incrementAgentPass(invoked.ref);
+  evaluateAgentPassAfterIncrement(updatedRef, projectRoot, phase);
+  return { ref: updatedRef, result: invoked.result };
 }
 
 async function runDoctorPreflight(deps: PlanDeps): Promise<void> {
@@ -183,11 +203,18 @@ function finishPhase(ref: RunRef, phase: string, summary: string): void {
   });
 }
 
+interface OrchestrateContext {
+  referenceUrl?: string;
+  swarmResearch?: boolean;
+  swarmBranches?: number;
+}
+
 async function orchestrateFromPhase(
   ref: RunRef,
   idea: string,
   projectRoot: string,
   deps: PlanDeps,
+  context: OrchestrateContext = {},
 ): Promise<RunRef> {
   let intakeMd = hasArtifact(ref, 'intake.md') ? readArtifact(ref, 'intake.md') : '';
 
@@ -208,14 +235,49 @@ async function orchestrateFromPhase(
 
   let researchMd = hasArtifact(ref, 'research.md') ? readArtifact(ref, 'research.md') : '';
 
+  if (context.referenceUrl && !hasArtifact(ref, 'reference-requirements.md')) {
+    const capture = deps.browserCapture ?? createBrowserCaptureAdapter();
+    const captured = await capture.summarizeUrl(context.referenceUrl);
+    if (captured.ok) {
+      writeArtifact(
+        ref.runDir,
+        'reference-requirements.md',
+        `# Reference requirements\n\nSource: ${captured.url}\n\n${captured.summary}\n`,
+      );
+      logArtifactPublished(ref, 'research', 'reference-requirements.md');
+    }
+  }
+
   if (!hasArtifact(ref, 'research.md')) {
     console.log('\nResearching…');
     startPhase(ref, 'research', 'Running research agent pass');
-    const pass = await consumeAgentPass(ref, projectRoot, () =>
-      deps.promptAgent(buildResearchPrompt(idea, intakeMd), projectRoot),
-    );
-    ref = pass.ref;
-    researchMd = pass.result;
+
+    if (context.swarmResearch) {
+      const swarm = await runResearchSwarm(ref, {
+        idea,
+        branchCount: context.swarmBranches ?? 2,
+        runSwarm: async (branchId, branchIdea) => {
+          const pass = await consumeAgentPass(ref, projectRoot, 'swarm_research', deps, () =>
+            deps.promptAgent(buildResearchPrompt(branchIdea, intakeMd), projectRoot),
+          );
+          ref = pass.ref;
+          return {
+            branchId,
+            citation: `swarm://${branchId}`,
+            summary: pass.result.slice(0, 500),
+          };
+        },
+      });
+      ref = swarm.ref;
+      researchMd = swarm.mergedMd;
+    } else {
+      const pass = await consumeAgentPass(ref, projectRoot, 'research', deps, () =>
+        deps.promptAgent(buildResearchPrompt(idea, intakeMd), projectRoot),
+      );
+      ref = pass.ref;
+      researchMd = pass.result;
+    }
+
     writeArtifact(ref.runDir, 'research.md', researchMd);
     logArtifactPublished(ref, 'research', 'research.md');
     finishPhase(ref, 'research', 'Research complete');
@@ -232,7 +294,7 @@ async function orchestrateFromPhase(
   if (!hasArtifact(ref, 'intent.md')) {
     console.log('Interview (10 coverage slots)…');
     startPhase(ref, 'interview', 'Running intent interview');
-    const pass = await consumeAgentPass(ref, projectRoot, () =>
+    const pass = await consumeAgentPass(ref, projectRoot, 'interview', deps, () =>
       deps.promptAgent(buildInterviewPrompt(idea, intakeMd, researchMd), projectRoot),
     );
     ref = pass.ref;
@@ -252,7 +314,7 @@ async function orchestrateFromPhase(
   if (!algorithmComplete) {
     console.log('Algorithm Pass…');
     startPhase(ref, 'algorithm_pass', 'Running algorithm pass');
-    const pass = await consumeAgentPass(ref, projectRoot, () =>
+    const pass = await consumeAgentPass(ref, projectRoot, 'algorithm_pass', deps, () =>
       deps.promptAgent(
         buildAlgorithmPassPrompt(idea, intakeMd, researchMd, intentRaw),
         projectRoot,
@@ -287,7 +349,7 @@ async function orchestrateFromPhase(
   if (!synthesisComplete) {
     console.log('Synthesizing planning artifacts…');
     startPhase(ref, 'synthesis', 'Running synthesis pass');
-    const pass = await consumeAgentPass(ref, projectRoot, () =>
+    const pass = await consumeAgentPass(ref, projectRoot, 'synthesis', deps, () =>
       deps.promptAgent(
         buildSynthesisPrompt(idea, intakeMd, researchMd, intentRaw, algorithmSummary),
         projectRoot,
@@ -331,8 +393,18 @@ async function orchestrateFromPhase(
 }
 
 export async function executePlan(options: ExecutePlanOptions): Promise<RunRef> {
-  const { idea, projectRoot, budget = DEFAULT_BUDGET } = options;
-  const deps = createDefaultPlanDeps(options.deps);
+  const {
+    idea,
+    projectRoot,
+    budget = DEFAULT_BUDGET,
+    referenceUrl,
+    swarmResearch,
+    swarmBranches,
+  } = options;
+  const deps = createDefaultPlanDeps({
+    ...options.deps,
+    loopDetector: options.deps?.loopDetector ?? new LoopDetector({ budget }),
+  });
 
   await runDoctorPreflight(deps);
 
@@ -346,7 +418,11 @@ export async function executePlan(options: ExecutePlanOptions): Promise<RunRef> 
     next_actions: ['Complete intake'],
   });
 
-  return orchestrateFromPhase(ref, idea, projectRoot, deps);
+  return orchestrateFromPhase(ref, idea, projectRoot, deps, {
+    referenceUrl,
+    swarmResearch,
+    swarmBranches,
+  });
 }
 
 export async function resumePlanFromCheckpoint(options: ResumePlanOptions): Promise<RunRef> {
@@ -373,7 +449,7 @@ export async function resumePlanFromCheckpoint(options: ResumePlanOptions): Prom
     next_actions: [`Resuming plan at phase ${inputRef.run.phase}`],
   });
 
-  return orchestrateFromPhase(ref, idea, projectRoot, deps);
+  return orchestrateFromPhase(ref, idea, projectRoot, deps, {});
 }
 
 export function printPlanCompleteBanner(ref: RunRef): void {

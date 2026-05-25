@@ -8,21 +8,35 @@ export {
   initProject,
 } from './project-init.js';
 
+export type {
+  CreateRunResult,
+  RunPersistence,
+  RunRef,
+} from './run-persistence.js';
+
+export type { RunQuery, RunScanResult } from './run-query.js';
+
 export {
-  type CreateRunResult,
-  type RunRef,
-  statusMarkdown,
-  readRunJson,
-  writeRunState,
-  listRunRefs,
-  findLatestRun,
-  findActiveRun,
-  findLatestPausedRun,
   createRun,
+  fileRunPersistence,
+  readRunJson,
+  statusMarkdown,
+  writeRunState,
   updateRunStatus,
+} from './run-persistence.js';
+
+export {
+  fileRunQuery,
+  findActiveRun,
+  findLatestAwaitingApprovalRun,
+  findLatestPausedRun,
+  findLatestRun,
+  listRunRefs,
+} from './run-query.js';
+
+export {
+  approveRun,
+  formatRunSummary,
   pauseRun,
   resumeRun,
-  formatRunSummary,
-  findLatestAwaitingApprovalRun,
-  approveRun,
 } from './run-store.js';

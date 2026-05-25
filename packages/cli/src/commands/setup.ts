@@ -54,7 +54,16 @@ async function executeSetup(mode: SetupMode): Promise<void> {
   const modeLabel = mode === 'expert' ? 'expert' : 'recommended';
   console.log(`Foundry setup (${modeLabel}) — doctor-guided readiness loop\n`);
   console.log('Safe repairs run via `doctor --fix` (Foundry-owned state only).');
-  console.log('No silent installs or Pi/Cursor config edits.\n');
+  console.log('No silent installs or Pi/Cursor config edits.');
+  console.log(
+    'Pi Extension Pack guide: https://github.com/kartikkabadi/pi-composer-powerpack (agent-feedable setup path).\n',
+  );
+
+  if (process.env.FOUNDRY_SETUP_AGENT === '1' && mode !== 'expert') {
+    console.log(
+      'Agent-guided setup: bounded suggestions enabled (max 3 turns); doctor re-runs each round.\n',
+    );
+  }
 
   for (let round = 1; round <= MAX_SETUP_ROUNDS; round++) {
     if (round > 1) {

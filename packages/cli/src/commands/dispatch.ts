@@ -12,6 +12,10 @@ import { runStatus } from './status.js';
 import { runPublish } from './publish.js';
 import { runApprove } from './approve.js';
 import { runBuild } from './build.js';
+import { runDaemon } from './daemon.js';
+import { runNotify } from './notify.js';
+import { runTui } from './tui.js';
+import { runUpdate } from './update.js';
 import { printHelp } from './help.js';
 
 const pkgPath = join(getMonorepoRoot(import.meta.url), 'package.json');
@@ -30,6 +34,10 @@ const COMMANDS: Record<string, CommandHandler> = {
   approve: runApprove,
   publish: runPublish,
   build: runBuild,
+  tui: runTui,
+  daemon: runDaemon,
+  notify: runNotify,
+  update: runUpdate,
 };
 
 export function dispatch(argv: string[]): void {

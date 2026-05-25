@@ -1,0 +1,10 @@
+version = 1
+name = "broken"
+
+[[roles]]
+id = ""
+reports_to = "researcher"
+
+[[roles]]
+id = "researcher"
+reports_to = "lead"

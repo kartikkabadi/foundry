@@ -9,7 +9,12 @@
     "./cursor.js": "./dist/cursor.js",
     "./foundry-agent.js": "./dist/foundry-agent.js",
     "./build-agent.js": "./dist/build-agent.js",
-    "./worktree.js": "./dist/worktree.js"
+    "./worktree.js": "./dist/worktree.js",
+    "./pi-runtime.js": "./dist/pi-runtime.js",
+    "./browser-capture.js": "./dist/browser-capture.js",
+    "./cuadriver.js": "./dist/cuadriver.js",
+    "./agent-errors.js": "./dist/agent-errors.js",
+    "./notify/*": "./dist/notify/*"
   },
   "dependencies": {
     "@foundry/core": "0.1.0",
