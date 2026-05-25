@@ -42,7 +42,9 @@ import {
   evaluateAgentPassAfterIncrement,
   recordLoopSignal,
 } from './agent-pass-policy.js';
+import { writeConflict } from '@foundry/core/conflicts/conflict.js';
 import { runResearchSwarm } from './swarm.js';
+import { detectSwarmDisagreement } from './swarm-disagreement.js';
 import {
   createRun,
   updateRunStatus,
@@ -270,6 +272,17 @@ async function orchestrateFromPhase(
       });
       ref = swarm.ref;
       researchMd = swarm.mergedMd;
+
+      const disagreement = detectSwarmDisagreement(swarm.branches);
+      if (disagreement) {
+        writeConflict(ref.runDir, {
+          id: 'swarm-disagreement',
+          prd_section: disagreement.prd_section,
+          summary: disagreement.summary,
+          status: 'open',
+          created_at: new Date().toISOString(),
+        });
+      }
     } else {
       const pass = await consumeAgentPass(ref, projectRoot, 'research', deps, () =>
         deps.promptAgent(buildResearchPrompt(idea, intakeMd), projectRoot),

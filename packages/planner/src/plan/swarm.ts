@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import type { RunRef } from '@foundry/core/state/run-writer.js';
 import { writeArtifact } from './artifacts.js';
@@ -19,7 +21,7 @@ export interface SwarmResearchOptions {
 export async function runResearchSwarm(
   ref: RunRef,
   options: SwarmResearchOptions,
-): Promise<{ ref: RunRef; mergedMd: string }> {
+): Promise<{ ref: RunRef; mergedMd: string; branches: SwarmBranchResult[] }> {
   const branchIds = Array.from({ length: options.branchCount }, (_, i) => `swarm-${i + 1}`);
 
   const runBranch = async (branchId: string): Promise<SwarmBranchResult> => {
@@ -68,5 +70,17 @@ export async function runResearchSwarm(
     branches.map((b) => `- ${b.branchId}: ${b.citation}`).join('\n'),
   );
 
-  return { ref, mergedMd };
+  mkdirSync(join(ref.runDir, 'swarm'), { recursive: true });
+  for (const branch of branches) {
+    writeArtifact(ref.runDir, `swarm/${branch.branchId}.md`, [
+      `# ${branch.branchId}`,
+      '',
+      `**Citation:** ${branch.citation}`,
+      '',
+      branch.summary,
+      '',
+    ].join('\n'));
+  }
+
+  return { ref, mergedMd, branches };
 }

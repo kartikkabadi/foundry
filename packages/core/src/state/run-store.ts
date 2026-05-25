@@ -1,3 +1,4 @@
+import { hasBlockingConflicts, listOpenConflicts } from '../conflicts/conflict.js';
 import { RunStateError } from './project-init.js';
 import type { RunRef } from './run-persistence.js';
 import { updateRunStatus } from './run-persistence.js';
@@ -88,6 +89,14 @@ export function formatRunSummary(ref: RunRef): string {
 
   if (run.next_actions.length > 0) {
     lines.push(`  Next: ${run.next_actions[0]}`);
+  }
+
+  const openConflicts = listOpenConflicts(ref.runDir);
+  if (openConflicts.length > 0) {
+    lines.push(`  Open conflicts: ${openConflicts.length} (${openConflicts.map((c) => c.id).join(', ')})`);
+    if (hasBlockingConflicts(ref.runDir)) {
+      lines.push('  Blocked: resolve conflicts before build or merge');
+    }
   }
 
   return lines.join('\n');

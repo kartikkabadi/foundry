@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import TOML from 'smol-toml';
 import { ZodError } from 'zod';
 import { teamSpecSchema, type TeamSpec } from '../schema/team-spec.js';
+import { getProjectFoundryDir } from '../state/project-init.js';
 
 export class TeamSpecValidationError extends Error {
   readonly line?: number;
@@ -50,6 +52,34 @@ export function parseTeamSpecSource(source: string, label = 'team spec'): TeamSp
 export function loadTeamSpecFromFile(filePath: string): TeamSpec {
   const source = readFileSync(filePath, 'utf8');
   return parseTeamSpecSource(source, filePath);
+}
+
+/** Load embedded `[team]` section from `.foundry/config.toml`, if present. */
+export function loadTeamSpecFromProject(projectRoot: string): TeamSpec | null {
+  const configPath = join(getProjectFoundryDir(projectRoot), 'config.toml');
+  if (!existsSync(configPath)) {
+    return null;
+  }
+
+  const raw = parseTomlWithLineContext(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  const team = raw.team;
+  if (!team || typeof team !== 'object') {
+    return null;
+  }
+
+  const section = team as Record<string, unknown>;
+  const parsed = teamSpecSchema.safeParse({
+    version: section.version ?? 1,
+    name: section.name,
+    roles: section.roles ?? [],
+  });
+
+  if (!parsed.success) {
+    const issues = formatZodIssues(parsed.error);
+    throw new TeamSpecValidationError('project config team section invalid', issues);
+  }
+
+  return parsed.data;
 }
 
 export function teamSpecToConfigSection(spec: TeamSpec): string {
