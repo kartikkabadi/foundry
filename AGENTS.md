@@ -68,6 +68,27 @@ Reference nearest project AGENTS (e.g. powerpack/AGENTS.md, clawhip-port/AGENTS.
 
 End every piece of work with: what changed, what was verified (commands/output), what remains + risks.
 
+## Cursor Cloud specific instructions
+
+This is a standalone TypeScript/Node CLI — no servers, databases, or Docker required.
+
+**Node version:** Node 20 is required (`.nvmrc`). The update script handles `nvm install 20`. Always source nvm before running commands: `. ~/.nvm/nvm.sh && nvm use 20`.
+
+**Key commands** (all from repo root):
+- `npm run build` — TypeScript compilation (`tsc -b --force`)
+- `npm test` — builds then runs 219 tests (all mocked, no network/API key needed)
+- `npm run typecheck` — alias for build
+- `bash scripts/demo.sh` — end-to-end CLI smoke (mock Composer, no API key)
+- `FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh` — build-mode smoke (mock)
+
+**sqlite3 native module:** `@cursor/sdk` depends on `sqlite3`. The postinstall script and `npm rebuild sqlite3` handle this. If you see `MODULE_NOT_FOUND` errors for sqlite3 after switching Node versions, run `npm rebuild sqlite3`.
+
+**No `sfw` in Cloud:** CI uses Socket's `sfw` wrapper for `npm`. In Cloud Agent VMs, `sfw` is not available — use `npm` directly.
+
+**Live plan/build requires `CURSOR_API_KEY`:** Without it, `foundry doctor` reports FAIL for `cursor-sdk` and `composer-2.5-standard` — this is expected. Tests, demos, and all mocked workflows work without it. Set the secret if live Composer integration is needed.
+
+**Mock env vars for testing:** `FOUNDRY_PI_MOCK=1`, `FOUNDRY_BROWSER_MOCK=1`, `FOUNDRY_CUADRIVER_MOCK=1`, `FOUNDRY_BUILD_MOCK=1` enable mock adapters for CI-safe testing.
+
 ---
 
 *This AGENTS.md added as part of 2026-05 alignment + hygiene baseline milestone (plan execution). Follows V1_PLAN verification requirements.*
