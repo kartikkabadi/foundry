@@ -2,9 +2,9 @@
 
 **Purpose:** Single SSOT mapping GitHub issues → code on `main` → test proof → status. Do not trust planning docs without this table or a fresh code read.
 
-**Last verified:** `main` @ `0fbd325` — `npm test` **156/156 pass** (no live Composer in CI).
+**Last verified:** `main` @ `cf1e30c` — `npm test` **219/219 pass**, `bash scripts/demo.sh` exit 0, `FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh` exit 0.
 
-**Canonical open work:** [#31–#50](https://github.com/kartikkabadi/foundry/issues?q=is%3Aissue+is%3Aopen) only. Duplicates #51–#90 are closed.
+**Canonical open work after PR #103:** #32, #34, #37, #42–#48, #50. Duplicates #51–#90 are closed.
 
 **Related:** [TRACKER_ALIGNMENT_2026-05-26.md](TRACKER_ALIGNMENT_2026-05-26.md), [V2-V5_GITHUB_ISSUES.md](V2-V5_GITHUB_ISSUES.md), master plan Part A in `docs/superpowers/plans/2026-05-25-foundry-verified-master-plan.md`.
 
@@ -75,37 +75,37 @@
 
 ---
 
-## V4 (#31–#40) — OPEN
+## V4 (#31–#40) — MIXED
 
 | # | Slice | Primary code | Test proof | Status |
 |---|-------|--------------|------------|--------|
-| [31](https://github.com/kartikkabadi/foundry/issues/31) | Parallel build | `packages/planner/src/build/parallel-schedule.ts`, `orchestrate.ts`, `packages/cli/src/commands/build.ts` (`--parallel`) | `tests/build-parallel.test.ts` (unit; no concurrent integration test) | **PARTIAL** — close after Phase 1 integration test |
-| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | — | — | **OPEN** |
-| [33](https://github.com/kartikkabadi/foundry/issues/33) | Team spec TOML | — | — | **OPEN** |
-| [34](https://github.com/kartikkabadi/foundry/issues/34) | Comms contracts | — | — | **OPEN** |
-| [35](https://github.com/kartikkabadi/foundry/issues/35) | Loop detection + budget | — | — | **OPEN** |
-| [36](https://github.com/kartikkabadi/foundry/issues/36) | Rate-limit checkpoint | partial in orchestrators | — | **OPEN** |
-| [37](https://github.com/kartikkabadi/foundry/issues/37) | Conflict artifacts | — | — | **OPEN** |
-| [38](https://github.com/kartikkabadi/foundry/issues/38) | Browser capture adapter | doctor check only | — | **PARTIAL** (doctor probe) |
-| [39](https://github.com/kartikkabadi/foundry/issues/39) | CuaDriver adapter | doctor check only | — | **PARTIAL** (doctor probe) |
-| [40](https://github.com/kartikkabadi/foundry/issues/40) | Pi runtime adapter | `packages/doctor/src/checks/pi-runtime.ts` | — | **PARTIAL** (doctor probe; no `packages/adapters` seam) |
+| [31](https://github.com/kartikkabadi/foundry/issues/31) | Parallel build | `packages/planner/src/build/parallel-schedule.ts`, `packages/planner/src/build/orchestrate.ts`, `packages/cli/src/commands/build.ts` (`--parallel`) | `tests/build-parallel.test.ts`, `tests/parallel-build.test.ts` | **DONE** |
+| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | `packages/planner/src/plan/swarm.ts`, `packages/planner/src/plan/orchestrate.ts` | `tests/plan-swarm.test.ts` | **PARTIAL** — prove full CLI fanout, provenance, budget, cleanup |
+| [33](https://github.com/kartikkabadi/foundry/issues/33) | Team spec TOML | `packages/core/src/team/spec.ts`, `packages/core/src/schema/team-spec.ts`, `packages/cli/src/commands/init.ts` | `tests/team-spec.test.ts` | **DONE** |
+| [34](https://github.com/kartikkabadi/foundry/issues/34) | Comms contracts | `packages/core/src/team/comms.ts` | `tests/comms-contracts.test.ts` | **PARTIAL** — wire into build preflight/orchestration |
+| [35](https://github.com/kartikkabadi/foundry/issues/35) | Loop detection + budget | `packages/core/src/loop/detection.ts`, `packages/planner/src/plan/agent-pass-policy.ts` | `tests/loop-detection.test.ts`, `tests/agent-pass-policy.test.ts`, `tests/budget-profiles.test.ts` | **DONE** |
+| [36](https://github.com/kartikkabadi/foundry/issues/36) | Rate-limit checkpoint | `packages/adapters/src/agent-errors.ts`, `packages/planner/src/plan/orchestrate.ts`, `packages/planner/src/build/orchestrate.ts` | `tests/rate-limit-checkpoint.test.ts` | **DONE** |
+| [37](https://github.com/kartikkabadi/foundry/issues/37) | Conflict artifacts | `packages/core/src/conflicts/conflict.ts` | `tests/conflict-artifacts.test.ts` | **PARTIAL** — wire into live plan/build/status blocking |
+| [38](https://github.com/kartikkabadi/foundry/issues/38) | Browser capture adapter | `packages/adapters/src/browser-capture.ts`, `packages/doctor/src/checks/browser-capture.ts`, `packages/cli/src/commands/plan.ts` | `tests/browser-capture.test.ts` | **DONE** |
+| [39](https://github.com/kartikkabadi/foundry/issues/39) | CuaDriver adapter | `packages/adapters/src/cuadriver.ts`, `packages/doctor/src/checks/cuadriver-computer-use.ts` | `tests/cuadriver-adapter.test.ts` | **DONE** |
+| [40](https://github.com/kartikkabadi/foundry/issues/40) | Pi runtime adapter | `packages/adapters/src/pi-runtime.ts`, `packages/doctor/src/checks/pi-runtime.ts` | `tests/pi-runtime-adapter.test.ts` | **DONE** |
 
 ---
 
-## V5 (#41–#50) — OPEN
+## V5 (#41–#50) — MIXED
 
 | # | Slice | Primary code | Test proof | Status |
 |---|-------|--------------|------------|--------|
-| [41](https://github.com/kartikkabadi/foundry/issues/41) | TUI | — | — | **OPEN** |
-| [42](https://github.com/kartikkabadi/foundry/issues/42) | Background daemon | — | — | **OPEN** |
-| [43](https://github.com/kartikkabadi/foundry/issues/43) | macOS notifications | — | — | **OPEN** |
-| [44](https://github.com/kartikkabadi/foundry/issues/44) | Webhook notifications | — | — | **OPEN** |
-| [45](https://github.com/kartikkabadi/foundry/issues/45) | Marathon policy | partial `budget-profiles.ts` | `tests/budget-profiles.test.ts` (~) | **OPEN** |
-| [46](https://github.com/kartikkabadi/foundry/issues/46) | Agent-guided setup | — | — | **OPEN** |
-| [47](https://github.com/kartikkabadi/foundry/issues/47) | GitHub private repo create | — | — | **OPEN** |
-| [48](https://github.com/kartikkabadi/foundry/issues/48) | npm distribution + self-update | — | — | **OPEN** |
-| [49](https://github.com/kartikkabadi/foundry/issues/49) | Powerpack guide integration | — | — | **OPEN** |
-| [50](https://github.com/kartikkabadi/foundry/issues/50) | Production hardening / V5 verification | — | — | **OPEN** |
+| [41](https://github.com/kartikkabadi/foundry/issues/41) | TUI | `packages/cli/src/commands/tui.ts`, `packages/cli/src/tui/render.ts` | `tests/tui-render.test.ts` | **DONE** |
+| [42](https://github.com/kartikkabadi/foundry/issues/42) | Background daemon | `packages/cli/src/commands/daemon.ts` | `tests/daemon-lifecycle.test.ts` | **PARTIAL** — prove real detach/attach and run continuity |
+| [43](https://github.com/kartikkabadi/foundry/issues/43) | macOS notifications | `packages/adapters/src/notify/macos.ts` | `tests/notifications-macos.test.ts` | **PARTIAL** — wire to live run events and setup config |
+| [44](https://github.com/kartikkabadi/foundry/issues/44) | Webhook notifications | `packages/adapters/src/notify/webhook.ts`, `packages/cli/src/commands/notify.ts` | `tests/notifications-webhook.test.ts` | **PARTIAL** — add persisted channel config and live wiring |
+| [45](https://github.com/kartikkabadi/foundry/issues/45) | Marathon policy | `packages/core/src/marathon/policy.ts`, `packages/planner/src/plan/agent-pass-policy.ts` | `tests/marathon-policy.test.ts`, `tests/agent-pass-policy.test.ts` | **PARTIAL** — prove live run metadata and scheduled review pauses |
+| [46](https://github.com/kartikkabadi/foundry/issues/46) | Agent-guided setup | `packages/cli/src/commands/setup.ts` | `tests/setup-agent.test.ts` | **PARTIAL** — implement bounded agent loop with doctor re-runs |
+| [47](https://github.com/kartikkabadi/foundry/issues/47) | GitHub private repo create | `packages/planner/src/build/create-repo-gate.ts`, `packages/cli/src/commands/build.ts` | `tests/create-repo-gate.test.ts` | **PARTIAL / HITL** — requires approved live repo-creation proof |
+| [48](https://github.com/kartikkabadi/foundry/issues/48) | npm distribution + self-update | `packages/cli/src/commands/update.ts`, `scripts/install.sh`, root `package.json` bin | `tests/npm-distribution.test.ts` | **PARTIAL** — add npm pack/global install smoke and registry update proof |
+| [49](https://github.com/kartikkabadi/foundry/issues/49) | Powerpack guide integration | `packages/core/src/constants/powerpack.ts`, setup/doctor messaging | `tests/powerpack-guide.test.ts` | **DONE** |
+| [50](https://github.com/kartikkabadi/foundry/issues/50) | Production hardening / V5 verification | `docs/CONTEXT.md`, CI/demo references | `tests/v5-verification-matrix.test.ts` | **PARTIAL** — final matrix waits on remaining V5 open issues |
 
 ---
 
