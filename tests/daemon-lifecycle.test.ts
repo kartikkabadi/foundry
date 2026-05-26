@@ -34,4 +34,13 @@ describe('daemon lifecycle (#42)', () => {
     assert.strictEqual(stop.stopped, true);
     assert.strictEqual(daemonStatus(projectRoot).running, false);
   });
+
+  it('stop clears invalid pid file without signaling', () => {
+    const pidPath = daemonPidPath(projectRoot);
+    fs.writeFileSync(pidPath, '-1', 'utf8');
+    const stop = daemonStop(projectRoot);
+    assert.strictEqual(stop.stopped, false);
+    assert.strictEqual(fs.existsSync(pidPath), false);
+    assert.strictEqual(daemonStatus(projectRoot).running, false);
+  });
 });

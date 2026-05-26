@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectFoundryDir } from '@foundry/core/state/run-writer.js';
 import {
@@ -42,34 +42,63 @@ export function daemonStart(projectRoot: string): { started: boolean; pid: numbe
 }
 
 export function daemonStop(projectRoot: string): { stopped: boolean; pid?: number } {
-  return stopDaemonProcess(daemonPidPath(projectRoot));
+  const pidPath = daemonPidPath(projectRoot);
+  const heartbeatPath = daemonHeartbeatPath(projectRoot);
+
+  if (process.env.FOUNDRY_DAEMON_MOCK === '1') {
+    let pid: number | undefined;
+    let hadPidFile = false;
+    if (existsSync(pidPath)) {
+      hadPidFile = true;
+      const parsed = Number.parseInt(readFileSync(pidPath, 'utf8').trim(), 10);
+      if (Number.isInteger(parsed) && parsed > 0) {
+        pid = parsed;
+      }
+      unlinkSync(pidPath);
+    }
+    if (existsSync(heartbeatPath)) {
+      unlinkSync(heartbeatPath);
+    }
+    return { stopped: hadPidFile, pid };
+  }
+
+  const result = stopDaemonProcess(pidPath);
+  if (existsSync(heartbeatPath)) {
+    unlinkSync(heartbeatPath);
+  }
+  return result;
 }
 
 export function daemonStatus(projectRoot: string): {
   running: boolean;
-  pid?: string;
+  pid?: number;
   stale?: boolean;
 } {
   const pidPath = daemonPidPath(projectRoot);
   if (!existsSync(pidPath)) {
     return { running: false };
   }
-  const pid = readFileSync(pidPath, 'utf8').trim();
+  const raw = readFileSync(pidPath, 'utf8').trim();
+  const numeric = Number.parseInt(raw, 10);
   if (process.env.FOUNDRY_DAEMON_MOCK === '1') {
-    return { running: true, pid };
+    return {
+      running: true,
+      pid: Number.isInteger(numeric) && numeric > 0 ? numeric : undefined,
+    };
   }
-  const numeric = Number.parseInt(pid, 10);
-  if (!Number.isFinite(numeric)) {
+  if (!Number.isInteger(numeric) || numeric <= 0) {
     return { running: false, stale: true };
   }
   if (!isProcessAlive(numeric)) {
-    return { running: false, stale: true, pid };
+    return { running: false, stale: true, pid: numeric };
   }
-  return { running: true, pid };
+  return { running: true, pid: numeric };
 }
 
 function runDaemonWatch(projectRoot: string): void {
   const heartbeatPath = daemonHeartbeatPath(projectRoot);
+  mkdirSync(getProjectFoundryDir(projectRoot), { recursive: true });
+  writeFileSync(heartbeatPath, new Date().toISOString(), 'utf8');
   const interval = setInterval(() => {
     writeFileSync(heartbeatPath, new Date().toISOString(), 'utf8');
   }, 5000);
