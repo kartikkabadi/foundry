@@ -3,17 +3,21 @@ export function printHelp(version: string): void {
 
 Usage: foundry <command> [options]
 
-Commands (v1):
+Commands:
   init       Initialize .foundry/ in the current repo
-  doctor     Run capability checks
+  doctor     Run capability checks (--for plan|setup|build|all, --deep, --json, --fix)
   setup      Agent-guided setup (--recommended|--expert)
-  plan       Create planning artifacts
+  plan       Create planning artifacts (--budget, --reference, --swarm research)
   publish    Convert issue-plan.md to drafts (GitHub with --approve)
   status     Show current run status
   pause      Pause an active run
-  resume     Resume a paused run
+  resume     Resume a paused run [run-id]
   approve    Approve plan for build
-  build      Execute approved build (preflight)
+  build      Execute approved build (--dry-run, --parallel N)
+  tui        Print run status panel
+  daemon     start|stop|status (PID file)
+  notify     --dry-run webhook payload validation
+  update     --dry-run self-update metadata
 
 Options:
   --version, -v   Print version

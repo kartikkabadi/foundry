@@ -2,7 +2,7 @@
 
 **Purpose:** Single SSOT mapping GitHub issues → code on `main` → test proof → status. Do not trust planning docs without this table or a fresh code read.
 
-**Last verified:** `main` @ `cf1e30c` — `npm test` **219/219 pass**, `bash scripts/demo.sh` exit 0, `FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh` exit 0.
+**Last verified:** `cursor/full-cli-verification-c260` — `npm test` **233+ pass**, `scripts/full-cli-harness.sh` exit 0, live Composer plan verified in Cloud.
 
 **Canonical open work after PR #103:** #32, #34, #37, #42–#48, #50. Duplicates #51–#90 are closed.
 
@@ -80,7 +80,7 @@
 | # | Slice | Primary code | Test proof | Status |
 |---|-------|--------------|------------|--------|
 | [31](https://github.com/kartikkabadi/foundry/issues/31) | Parallel build | `packages/planner/src/build/parallel-schedule.ts`, `packages/planner/src/build/orchestrate.ts`, `packages/cli/src/commands/build.ts` (`--parallel`) | `tests/build-parallel.test.ts`, `tests/parallel-build.test.ts` | **DONE** |
-| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | `packages/planner/src/plan/swarm.ts`, `packages/planner/src/plan/orchestrate.ts` | `tests/plan-swarm.test.ts` | **PARTIAL** — prove full CLI fanout, provenance, budget, cleanup |
+| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | `packages/planner/src/plan/swarm.ts`, `packages/cli/src/commands/plan.ts` (`--swarm-branches`) | `tests/plan-swarm.test.ts`, `tests/plan-args.test.ts` | **PARTIAL** — CLI branch count + parallel fanout; marathon budget cleanup TBD |
 | [33](https://github.com/kartikkabadi/foundry/issues/33) | Team spec TOML | `packages/core/src/team/spec.ts`, `packages/core/src/schema/team-spec.ts`, `packages/cli/src/commands/init.ts` | `tests/team-spec.test.ts` | **DONE** |
 | [34](https://github.com/kartikkabadi/foundry/issues/34) | Comms contracts | `packages/core/src/team/comms.ts` | `tests/comms-contracts.test.ts` | **PARTIAL** — wire into build preflight/orchestration |
 | [35](https://github.com/kartikkabadi/foundry/issues/35) | Loop detection + budget | `packages/core/src/loop/detection.ts`, `packages/planner/src/plan/agent-pass-policy.ts` | `tests/loop-detection.test.ts`, `tests/agent-pass-policy.test.ts`, `tests/budget-profiles.test.ts` | **DONE** |

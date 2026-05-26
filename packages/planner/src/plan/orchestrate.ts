@@ -277,6 +277,7 @@ async function orchestrateFromPhase(
       const swarm = await runResearchSwarm(ref, {
         idea,
         branchCount: context.swarmBranches ?? 2,
+        parallel: true,
         runSwarm: async (branchId, branchIdea) => {
           const pass = await consumeAgentPass(ref, projectRoot, 'swarm_research', deps, () =>
             deps.promptAgent(buildResearchPrompt(branchIdea, intakeMd), projectRoot),
@@ -300,6 +301,12 @@ async function orchestrateFromPhase(
           summary: disagreement.summary,
           status: 'open',
           created_at: new Date().toISOString(),
+        });
+        appendEvent(ref.runDir, {
+          type: 'conflict_raised',
+          phase: 'research',
+          summary: disagreement.summary,
+          thread: 'research.md',
         });
       }
     } else {

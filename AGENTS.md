@@ -85,6 +85,8 @@ This is a standalone TypeScript/Node CLI — no servers, databases, or Docker re
 
 **No `sfw` in Cloud:** CI uses Socket's `sfw` wrapper for `npm`. In Cloud Agent VMs, `sfw` is not available — use `npm` directly.
 
+**Pi in Cloud:** Doctor may report `pi-cli` PASS via a stub (`pi 0.0.0-stub`) in the Cloud Agent image; local installs need a real `pi` on PATH.
+
 **Live plan/build requires `CURSOR_API_KEY`:** Without it, `foundry doctor` reports FAIL for `cursor-sdk` and `composer-2.5-standard` — this is expected. Tests, demos, and all mocked workflows work without it. Set the secret if live Composer integration is needed.
 
 **Mock env vars for testing:** `FOUNDRY_PI_MOCK=1`, `FOUNDRY_BROWSER_MOCK=1`, `FOUNDRY_CUADRIVER_MOCK=1`, `FOUNDRY_BUILD_MOCK=1` enable mock adapters for CI-safe testing.

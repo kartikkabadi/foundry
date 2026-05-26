@@ -49,6 +49,10 @@ describe('foundry CLI bootstrap (Issue 1 ACs: --version, --help, state dir)', ()
     assert.ok(out.includes('resume'));
     assert.ok(out.includes('approve'));
     assert.ok(out.includes('build'));
+    assert.ok(out.includes('tui'));
+    assert.ok(out.includes('daemon'));
+    assert.ok(out.includes('notify'));
+    assert.ok(out.includes('update'));
   });
 
   it('init creates project .foundry layout in cwd', () => {

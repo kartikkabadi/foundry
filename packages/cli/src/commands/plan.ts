@@ -6,12 +6,14 @@ export interface ParsedPlanArgs {
   budget: RunBudget;
   referenceUrl?: string;
   swarmResearch: boolean;
+  swarmBranches?: number;
 }
 
 export function parsePlanArgs(args: string[]): ParsedPlanArgs {
   let budget: RunBudget = 'deep';
   let referenceUrl: string | undefined;
   let swarmResearch = false;
+  let swarmBranches: number | undefined;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -44,16 +46,27 @@ export function parsePlanArgs(args: string[]): ParsedPlanArgs {
       swarmResearch = true;
       continue;
     }
+    if (arg === '--swarm-branches') {
+      const value = args[++i];
+      const n = value ? Number.parseInt(value, 10) : NaN;
+      if (!Number.isFinite(n) || n < 2 || n > 5) {
+        console.error('Usage: --swarm-branches must be an integer from 2 to 5');
+        process.exit(1);
+      }
+      swarmBranches = n;
+      swarmResearch = true;
+      continue;
+    }
     positional.push(arg);
   }
 
   if (positional.length === 0) {
-    return { idea: null, budget, referenceUrl, swarmResearch };
+    return { idea: null, budget, referenceUrl, swarmResearch, swarmBranches };
   }
 
   const joined = positional.join(' ').trim();
   if (!joined) {
-    return { idea: null, budget, referenceUrl, swarmResearch };
+    return { idea: null, budget, referenceUrl, swarmResearch, swarmBranches };
   }
 
   let idea = joined;
@@ -61,11 +74,11 @@ export function parsePlanArgs(args: string[]): ParsedPlanArgs {
     idea = joined.slice(1, -1).trim();
   }
 
-  return { idea, budget, referenceUrl, swarmResearch };
+  return { idea, budget, referenceUrl, swarmResearch, swarmBranches };
 }
 
 export function runPlan(args: string[]): void {
-  const { idea, budget, referenceUrl, swarmResearch } = parsePlanArgs(args);
+  const { idea, budget, referenceUrl, swarmResearch, swarmBranches } = parsePlanArgs(args);
   if (!idea) {
     console.error(
       'Usage: foundry plan "<rough software idea>" [--budget quick|deep|marathon] [--reference URL] [--swarm research]',
@@ -74,7 +87,14 @@ export function runPlan(args: string[]): void {
     process.exit(1);
   }
 
-  executePlan({ idea, projectRoot: process.cwd(), budget, referenceUrl, swarmResearch })
+  executePlan({
+    idea,
+    projectRoot: process.cwd(),
+    budget,
+    referenceUrl,
+    swarmResearch,
+    swarmBranches,
+  })
     .then((ref) => {
       printPlanCompleteBanner(ref);
       process.exit(0);
