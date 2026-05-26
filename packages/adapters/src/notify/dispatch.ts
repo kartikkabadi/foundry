@@ -1,8 +1,7 @@
 import { loadNotificationsConfig } from '@foundry/core/config/notifications.js';
-import { createMacosNotifyPort } from './macos.js';
+import { createDefaultMacosNotifier, createMacosNotifyPort } from './macos.js';
 import { createWebhookNotifyPort } from './webhook.js';
 import type { NotifyPayload } from './port.js';
-import { spawn } from 'node:child_process';
 
 const defaultPost = async (url: string, body: Record<string, unknown>) => {
   const f = (globalThis as any).fetch;
@@ -16,18 +15,6 @@ const defaultPost = async (url: string, body: Record<string, unknown>) => {
   } catch {}
 };
 
-const defaultMacosNotifier = {
-  notify(title: string, body: string) {
-    if (process.platform !== 'darwin') return;
-    const t = title.replace(/["\\]/g, '\\$&');
-    const b = body.replace(/["\\]/g, '\\$&');
-    spawn('osascript', ['-e', `display notification "${b}" with title "${t}"`], {
-      stdio: 'ignore',
-      detached: true,
-    }).unref();
-  },
-};
-
 export async function dispatchRunNotification(
   payload: NotifyPayload,
   options: {
@@ -37,7 +24,8 @@ export async function dispatchRunNotification(
 ): Promise<void> {
   const config = loadNotificationsConfig();
 
-  const macosNotifier = options.macosNotifier ?? (config.macos.enabled ? defaultMacosNotifier : undefined);
+  const macosNotifier =
+    options.macosNotifier ?? (config.macos.enabled ? createDefaultMacosNotifier() : undefined);
   if (config.macos.enabled && macosNotifier) {
     await createMacosNotifyPort(macosNotifier).send(payload);
   }

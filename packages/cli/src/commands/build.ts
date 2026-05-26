@@ -1,10 +1,12 @@
-import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 import { assertApproved, GateError } from '@foundry/core/gates.js';
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
 import { loadAutonomyProfileFromRun } from '@foundry/planner/build/autonomy.js';
 import { evaluateCreateRepoGate } from '@foundry/planner/build/create-repo-gate.js';
-import { createPrivateGitHubRepo } from '@foundry/adapters/github-create-repo.js';
+import {
+  createPrivateGitHubRepo,
+  createRepoWithGhCli,
+} from '@foundry/adapters/github-create-repo.js';
 import {
   executeBuild,
   handleBuildError,
@@ -98,10 +100,9 @@ export async function runBuildAsync(args: string[]): Promise<void> {
         if (process.env.FOUNDRY_MOCK_GH_CREATE === '1') {
           console.log(`create-repo: mock created private repo ${repoName}`);
         } else {
-          const created = await createPrivateGitHubRepo(repoName, async (name) => {
-            execFileSync('gh', ['repo', 'create', name, '--private'], { stdio: 'pipe' });
-            return { name, url: `https://github.com/kartikkabadi/${name}` };
-          });
+          const created = await createPrivateGitHubRepo(repoName, async (name) =>
+            createRepoWithGhCli(name),
+          );
           console.log(`create-repo: created ${created.url}`);
         }
       } catch (error) {
