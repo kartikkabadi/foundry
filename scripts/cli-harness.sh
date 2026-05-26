@@ -23,6 +23,20 @@ send() {
   sleep 0.6
 }
 
+wait_pane() {
+  local pattern="$1"
+  local max="${2:-30}"
+  local i=0
+  while [ "$i" -lt "$max" ]; do
+    if "${TMUX_CMD[@]}" capture-pane -pt "$SESSION:0.0" -S -200 | grep -qE "$pattern"; then
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
 capture() {
   "${TMUX_CMD[@]}" capture-pane -pt "$SESSION:0.0" -S -200 | tail -n 120
 }
@@ -34,13 +48,15 @@ send "node \"$CLI\" --help"
 send "mkdir -p project && cd project"
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" init"
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" doctor --for plan"
+wait_pane 'Foundry doctor|Exit code:' 45 || { capture; echo 'FAIL: doctor timed out'; exit 1; }
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" status"
+wait_pane 'No runs yet|Run ' 10 || true
 
 OUT="$(capture)"
 echo "$OUT"
 
 echo "$OUT" | grep -qE 'Foundry v|foundry@|0\.1\.0' || { echo 'FAIL: missing version output'; exit 1; }
-echo "$OUT" | grep -qiE 'foundry doctor|doctor \(for=' || { echo 'FAIL: doctor did not run'; exit 1; }
+echo "$OUT" | grep -qiE 'Foundry doctor|doctor \(for=' || { echo 'FAIL: doctor did not run'; exit 1; }
 echo "$OUT" | grep -qiE 'project initialized|config\.toml' || { echo 'FAIL: init did not run'; exit 1; }
 
 echo "==> cli-harness OK"
