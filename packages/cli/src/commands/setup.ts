@@ -72,10 +72,15 @@ async function executeSetup(mode: SetupMode): Promise<void> {
   }
 
   if (process.stdin.isTTY && process.env.FOUNDRY_ENABLE_NOTIFICATIONS === '1') {
-    const config = loadNotificationsConfig();
-    config.macos.enabled = process.platform === 'darwin';
-    saveNotificationsConfig(config);
-    console.log('Notifications enabled in ~/.foundry/notifications.toml\n');
+    const current = loadNotificationsConfig();
+    const next = {
+      macos: { enabled: process.platform === 'darwin' },
+      webhook: { ...current.webhook },
+    };
+    saveNotificationsConfig(next);
+    if (next.macos.enabled || next.webhook.enabled) {
+      console.log('Notifications enabled in ~/.foundry/notifications.toml\n');
+    }
   }
 
   let agentTurn = 0;

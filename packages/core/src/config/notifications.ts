@@ -24,7 +24,7 @@ export function notificationsConfigPath(): string {
 export function loadNotificationsConfig(): NotificationsConfig {
   const path = notificationsConfigPath();
   if (!existsSync(path)) {
-    return { ...DEFAULT_CONFIG };
+    return structuredClone(DEFAULT_CONFIG);
   }
 
   try {
@@ -42,7 +42,7 @@ export function loadNotificationsConfig(): NotificationsConfig {
       },
     };
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return structuredClone(DEFAULT_CONFIG);
   }
 }
 
