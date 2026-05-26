@@ -46,6 +46,6 @@ describe('v5 verification matrix (#50)', () => {
       'utf8',
     );
     assert.match(doc, /full-cli-harness/);
-    assert.match(doc, /cli-harness/);
+    assert.match(doc, /\bcli-harness\b/);
   });
 });

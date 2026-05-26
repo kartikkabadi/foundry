@@ -5,9 +5,10 @@ import { createPrivateGitHubRepo } from '@foundry/adapters/github-create-repo.js
 describe('create-repo adapter (#47)', () => {
   it('invokes runner when approved', async () => {
     let called = false;
-    const result = await createPrivateGitHubRepo('my-app', async (name) => {
+    const result = await createPrivateGitHubRepo('my-app', async (name, options) => {
       called = true;
       assert.strictEqual(name, 'my-app');
+      assert.strictEqual(options.private, true);
       return { name, url: 'https://github.com/org/my-app' };
     });
     assert.strictEqual(called, true);

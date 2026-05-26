@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseSetupArgs } from '../packages/cli/src/commands/setup.js';
-import { runSetupAgentTurn } from '@foundry/planner/setup/suggestions.js';
+import { MAX_AGENT_TURNS, runSetupAgentTurn } from '@foundry/planner/setup/suggestions.js';
 
 describe('setup agent (#46)', () => {
   it('expert mode skips agent loop flag path', () => {
@@ -18,8 +18,11 @@ describe('setup agent (#46)', () => {
       1,
     );
     assert.ok(suggestions.length >= 1);
-    const empty = await runSetupAgentTurn([], 99);
-    assert.strictEqual(empty.length, 0);
+    const capped = await runSetupAgentTurn(
+      [{ id: 'pi-cli', message: 'missing', repair: 'install pi' }],
+      MAX_AGENT_TURNS + 1,
+    );
+    assert.strictEqual(capped.length, 0);
   });
 
   it('bounded agent loop env is documented in setup source', async () => {
