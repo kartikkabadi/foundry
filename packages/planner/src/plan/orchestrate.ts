@@ -444,7 +444,7 @@ async function orchestrateFromPhase(
       ],
     });
 
-    void dispatchRunNotification({
+    await dispatchRunNotification({
       event: 'approval_waiting',
       title: 'Foundry',
       body: 'Plan awaiting approval — review artifacts in .foundry/runs/',

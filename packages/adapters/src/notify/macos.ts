@@ -20,10 +20,12 @@ export function spawnMacosNotification(title: string, body: string): void {
   if (process.platform !== 'darwin') {
     return;
   }
-  spawn('osascript', ['-e', buildMacosNotificationScript(title, body)], {
+  const child = spawn('osascript', ['-e', buildMacosNotificationScript(title, body)], {
     stdio: 'ignore',
     detached: true,
-  }).unref();
+  });
+  child.on('error', () => undefined);
+  child.unref();
 }
 
 export function createMacosNotifyPort(notifier: MacosNotifier): NotifyPort {

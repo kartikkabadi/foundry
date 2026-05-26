@@ -41,7 +41,7 @@ export async function invokeAgentWithCheckpoint(options: {
       },
     });
 
-    void dispatchRunNotification({
+    await dispatchRunNotification({
       event: 'rate_limit_pause',
       title: 'Foundry',
       body: `Composer rate limited — resume with foundry resume (model: ${modelId})`,

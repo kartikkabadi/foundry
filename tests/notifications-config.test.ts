@@ -62,6 +62,47 @@ describe('notifications config (#43/#44)', () => {
     assert.strictEqual(mock.calls.length, 0);
   });
 
+  it('defaultPost rejects network errors and non-2xx webhook responses', async () => {
+    saveNotificationsConfig({
+      macos: { enabled: false },
+      webhook: { enabled: true, url: 'https://example.com/hook', channel: 'http' },
+    });
+    const globalWithFetch = globalThis as { fetch?: typeof fetch };
+    const originalFetch = globalWithFetch.fetch;
+    try {
+      globalWithFetch.fetch = async () => {
+        throw new Error('network down');
+      };
+      await assert.rejects(
+        () =>
+          dispatchRunNotification({
+            event: 'approval_waiting',
+            title: 'Foundry',
+            body: 'waiting',
+          }),
+        /network down/,
+      );
+
+      globalWithFetch.fetch = async () =>
+        ({
+          ok: false,
+          status: 503,
+          text: async () => 'unavailable',
+        }) as Response;
+      await assert.rejects(
+        () =>
+          dispatchRunNotification({
+            event: 'approval_waiting',
+            title: 'Foundry',
+            body: 'waiting',
+          }),
+        /webhook POST failed \(503\)/,
+      );
+    } finally {
+      globalWithFetch.fetch = originalFetch;
+    }
+  });
+
   it('dispatch posts to webhook when enabled', async () => {
     saveNotificationsConfig({
       macos: { enabled: false },

@@ -5,14 +5,19 @@ import type { NotifyPayload } from './port.js';
 
 const defaultPost = async (url: string, body: Record<string, unknown>) => {
   const f = (globalThis as any).fetch;
-  if (typeof f !== 'function') return;
-  try {
-    await f(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {}
+  if (typeof f !== 'function') {
+    throw new Error('fetch is not available for webhook delivery');
+  }
+  const res = await f(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const snippet = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+    const detail = snippet ? `: ${snippet.slice(0, 200)}` : '';
+    throw new Error(`webhook POST failed (${res.status})${detail}`);
+  }
 };
 
 export async function dispatchRunNotification(
