@@ -4,7 +4,7 @@
 
 **Last verified:** `cursor/full-cli-verification-c260` — `npm test` **233+ pass**, `scripts/full-cli-harness.sh` exit 0, live Composer plan verified in Cloud.
 
-**Canonical open work:** verify on GitHub — slices #32, #34, #42–#48 targeted in PR `cursor/v5-open-issues-c260`. #37 **DONE** on main. Duplicates #51–#90 are closed.
+**Canonical open work:** verify on GitHub — slices #32, #34, #42–#48 targeted in PR `cursor/v5-open-issues-c260`. Duplicates #51–#90 are closed.
 
 **Related:** [V2-V5_GITHUB_ISSUES.md](V2-V5_GITHUB_ISSUES.md), [../agents/README.md](../agents/README.md), [../agents/issue-tracker.md](../agents/issue-tracker.md). Historical alignment snapshot: `docs/archive/TRACKER_ALIGNMENT_2026-05-26.md` (pre–PR #103).
 
