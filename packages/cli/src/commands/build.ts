@@ -84,7 +84,7 @@ export async function runBuildAsync(args: string[]): Promise<void> {
       process.exit(1);
     }
 
-    if (parsed.createRepo) {
+    if (parsed.createRepo && !parsed.dryRun) {
       const profile = loadAutonomyProfileFromRun(latest.runDir);
       const gate = evaluateCreateRepoGate(profile, {
         explicitApproval: parsed.approveCreateRepo,
@@ -99,8 +99,8 @@ export async function runBuildAsync(args: string[]): Promise<void> {
           console.log(`create-repo: mock created private repo ${repoName}`);
         } else {
           const created = await createPrivateGitHubRepo(repoName, async (name) => {
-            execSync(`gh repo create ${name} --private`, { stdio: 'pipe' });
-            return { name, url: `https://github.com/${name}` };
+            execSync('gh', ['repo', 'create', name, '--private'], { stdio: 'pipe' });
+            return { name, url: `https://github.com/kartikkabadi/${name}` };
           });
           console.log(`create-repo: created ${created.url}`);
         }
@@ -110,30 +110,33 @@ export async function runBuildAsync(args: string[]): Promise<void> {
       }
     }
 
-    executeBuild({
-      projectRoot,
-      ref: latest,
-      dryRun: parsed.dryRun,
-      deferIssueNumber: parsed.deferIssue,
-      parallel: parsed.parallel,
-    })
-      .then((ref) => {
-        if (parsed.dryRun) {
-          process.exit(0);
-        }
-        if (ref.run.build?.goal_complete) {
-          console.log('Build complete. Build goal satisfied.');
-        } else if (ref.run.phase === 'build_review') {
-          console.log('Build paused for orchestrator review.');
-        } else {
-          console.log('Build preflight passed and execution progressed.');
-          if (ref.run.build) {
-            console.log(ref.run.next_actions[0] ?? '');
-          }
-        }
-        process.exit(0);
-      })
-      .catch(handleBuildError);
+    let ref;
+    try {
+      ref = await executeBuild({
+        projectRoot,
+        ref: latest,
+        dryRun: parsed.dryRun,
+        deferIssueNumber: parsed.deferIssue,
+        parallel: parsed.parallel,
+      });
+    } catch (error) {
+      handleBuildError(error);
+      return;
+    }
+    if (parsed.dryRun) {
+      process.exit(0);
+    }
+    if (ref.run.build?.goal_complete) {
+      console.log('Build complete. Build goal satisfied.');
+    } else if (ref.run.phase === 'build_review') {
+      console.log('Build paused for orchestrator review.');
+    } else {
+      console.log('Build preflight passed and execution progressed.');
+      if (ref.run.build) {
+        console.log(ref.run.next_actions[0] ?? '');
+      }
+    }
+    process.exit(0);
   } catch (error) {
     if (error instanceof RunStateError) {
       console.error(`foundry build: ${error.message}`);
