@@ -15,7 +15,8 @@ export type RunStateErrorCode =
   | 'NO_ACTIVE_RUN'
   | 'NO_PAUSED_RUN'
   | 'MALFORMED'
-  | 'NOT_FOUND';
+  | 'NOT_FOUND'
+  | 'BLOCKED';
 
 export class RunStateError extends Error {
   readonly code: RunStateErrorCode;

@@ -36,6 +36,15 @@ export function approveRun(projectRoot: string, runId?: string): RunRef {
     );
   }
 
+  const openConflicts = listOpenConflicts(target.runDir);
+  if (openConflicts.length > 0) {
+    const ids = openConflicts.map((conflict) => conflict.id).join(', ');
+    throw new RunStateError(
+      'BLOCKED',
+      `Run ${target.runId} has open conflicts (${ids}). Resolve conflicts before approving.`,
+    );
+  }
+
   return updateRunStatus(projectRoot, target.runId, 'approved', {
     next_actions: ['Run `foundry build` to execute the approved plan'],
     blocked_actions: [],
