@@ -1,4 +1,5 @@
 import { isRateLimitError, RateLimitCheckpointError } from '@foundry/adapters/agent-errors.js';
+import { dispatchRunNotification } from '@foundry/adapters/notify/dispatch.js';
 import { COMPOSER_MODEL_STANDARD } from '@foundry/adapters/foundry-agent.js';
 import { appendEvent } from '@foundry/core/comms/events.js';
 import { pauseRun, writeRunState, type RunRef } from '@foundry/core/state/run-writer.js';
@@ -38,6 +39,16 @@ export async function invokeAgentWithCheckpoint(options: {
         ...paused.run,
         composer_speed: paused.run.composer_speed,
       },
+    });
+
+    await dispatchRunNotification({
+      event: 'rate_limit_pause',
+      title: 'Foundry',
+      body: `Composer rate limited — resume with foundry resume (model: ${modelId})`,
+    }).catch((err) => {
+      console.warn(
+        `rate-limit notification failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     });
 
     throw new RateLimitCheckpointError({ ...paused, run }, modelId);

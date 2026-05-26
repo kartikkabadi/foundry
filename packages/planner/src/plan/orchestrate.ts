@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { dispatchRunNotification } from '@foundry/adapters/notify/dispatch.js';
 import { getMonorepoRoot } from '@foundry/core/paths.js';
 import type { DoctorDeps } from '@foundry/doctor/deps.js';
 import { createDefaultDeps } from '@foundry/doctor/deps.js';
@@ -205,6 +206,18 @@ function finishPhase(ref: RunRef, phase: string, summary: string): void {
   });
 }
 
+function appendSwarmProvenance(runDir: string, researchMd: string): string {
+  const provenancePath = join(runDir, 'swarm-provenance.md');
+  if (!existsSync(provenancePath)) {
+    return researchMd;
+  }
+  const provenance = readFileSync(provenancePath, 'utf8').trim();
+  if (!provenance) {
+    return researchMd;
+  }
+  return `${researchMd}\n\n## Swarm provenance (citations)\n\n${provenance}\n`;
+}
+
 function approvalGateActions(runDir: string): {
   next_actions: string[];
   blocked_actions: string[];
@@ -274,9 +287,12 @@ async function orchestrateFromPhase(
     startPhase(ref, 'research', 'Running research agent pass');
 
     if (context.swarmResearch) {
+      const profile = resolveBudgetProfile(ref.run.budget);
+      const requested = context.swarmBranches ?? 2;
+      const branchCount = Math.min(Math.max(requested, 2), Math.max(2, profile.max_active));
       const swarm = await runResearchSwarm(ref, {
         idea,
-        branchCount: context.swarmBranches ?? 2,
+        branchCount,
         parallel: true,
         runSwarm: async (branchId, branchIdea) => {
           const pass = await consumeAgentPass(ref, projectRoot, 'swarm_research', deps, () =>
@@ -291,7 +307,7 @@ async function orchestrateFromPhase(
         },
       });
       ref = swarm.ref;
-      researchMd = swarm.mergedMd;
+      researchMd = appendSwarmProvenance(ref.runDir, swarm.mergedMd);
 
       const disagreement = detectSwarmDisagreement(swarm.branches);
       if (disagreement) {
@@ -426,6 +442,16 @@ async function orchestrateFromPhase(
         ...algorithmWritten,
         ...writtenArtifacts,
       ],
+    });
+
+    await dispatchRunNotification({
+      event: 'approval_waiting',
+      title: 'Foundry',
+      body: 'Plan awaiting approval — review artifacts in .foundry/runs/',
+    }).catch((err) => {
+      console.warn(
+        `approval notification failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     });
   }
 

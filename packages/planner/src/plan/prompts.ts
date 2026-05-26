@@ -102,6 +102,8 @@ ${intentMd}
 Algorithm Pass (requirements through risks):
 ${algorithmArtifacts}
 
+When research includes a "Swarm provenance" section, cite those sources in summary.md and prd.md.
+
 Output exactly five artifacts separated by delimiter lines. Use this format:
 
 ---ARTIFACT: summary.md---

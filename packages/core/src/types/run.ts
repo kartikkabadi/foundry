@@ -32,6 +32,11 @@ export interface AgentPassBudget {
   limit: number;
 }
 
+export interface MarathonRunMetadata {
+  review_pause_at_passes: number[];
+  checkpoint_interval_passes: number;
+}
+
 export interface RunJson {
   schema_version: typeof RUN_JSON_SCHEMA_VERSION;
   run_id: string;
@@ -49,4 +54,5 @@ export interface RunJson {
   next_actions: string[];
   proofs?: ProofRecord[];
   build?: BuildState;
+  marathon?: MarathonRunMetadata;
 }

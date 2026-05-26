@@ -4,7 +4,7 @@
 
 **Last verified:** `cursor/full-cli-verification-c260` — `npm test` **233+ pass**, `scripts/full-cli-harness.sh` exit 0, live Composer plan verified in Cloud.
 
-**Canonical open work after PR #103:** #32, #34, #37, #42–#48, #50. Duplicates #51–#90 are closed.
+**Canonical open work:** verify on GitHub — slices #32, #34, #42–#48 targeted in PR `cursor/v5-open-issues-c260`. Duplicates #51–#90 are closed.
 
 **Related:** [V2-V5_GITHUB_ISSUES.md](V2-V5_GITHUB_ISSUES.md), [../agents/README.md](../agents/README.md), [../agents/issue-tracker.md](../agents/issue-tracker.md). Historical alignment snapshot: `docs/archive/TRACKER_ALIGNMENT_2026-05-26.md` (pre–PR #103).
 
@@ -80,9 +80,9 @@
 | # | Slice | Primary code | Test proof | Status |
 |---|-------|--------------|------------|--------|
 | [31](https://github.com/kartikkabadi/foundry/issues/31) | Parallel build | `packages/planner/src/build/parallel-schedule.ts`, `packages/planner/src/build/orchestrate.ts`, `packages/cli/src/commands/build.ts` (`--parallel`) | `tests/build-parallel.test.ts`, `tests/parallel-build.test.ts` | **DONE** |
-| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | `packages/planner/src/plan/swarm.ts`, `packages/cli/src/commands/plan.ts` (`--swarm-branches`) | `tests/plan-swarm.test.ts`, `tests/plan-args.test.ts` | **PARTIAL** — CLI branch count + parallel fanout; marathon budget cleanup TBD |
+| [32](https://github.com/kartikkabadi/foundry/issues/32) | Exploration swarm | `packages/planner/src/plan/swarm.ts`, `plan/orchestrate.ts` | `tests/plan-swarm.test.ts`, `tests/plan-args.test.ts` | **DONE** — `--swarm-branches`, parallel fanout, provenance in research/synthesis |
 | [33](https://github.com/kartikkabadi/foundry/issues/33) | Team spec TOML | `packages/core/src/team/spec.ts`, `packages/core/src/schema/team-spec.ts`, `packages/cli/src/commands/init.ts` | `tests/team-spec.test.ts` | **DONE** |
-| [34](https://github.com/kartikkabadi/foundry/issues/34) | Comms contracts | `packages/core/src/team/comms.ts` | `tests/comms-contracts.test.ts` | **PARTIAL** — wire into build preflight/orchestration |
+| [34](https://github.com/kartikkabadi/foundry/issues/34) | Comms contracts | `packages/planner/src/build/publish-handoffs.ts` | `tests/comms-contracts.test.ts`, `tests/build-handoffs.test.ts` | **DONE** — handoff template + `handoff_published` on build |
 | [35](https://github.com/kartikkabadi/foundry/issues/35) | Loop detection + budget | `packages/core/src/loop/detection.ts`, `packages/planner/src/plan/agent-pass-policy.ts` | `tests/loop-detection.test.ts`, `tests/agent-pass-policy.test.ts`, `tests/budget-profiles.test.ts` | **DONE** |
 | [36](https://github.com/kartikkabadi/foundry/issues/36) | Rate-limit checkpoint | `packages/adapters/src/agent-errors.ts`, `packages/planner/src/plan/orchestrate.ts`, `packages/planner/src/build/orchestrate.ts` | `tests/rate-limit-checkpoint.test.ts` | **DONE** |
 | [37](https://github.com/kartikkabadi/foundry/issues/37) | Conflict artifacts | `packages/core/src/conflicts/conflict.ts` | `tests/conflict-artifacts.test.ts` | **PARTIAL** — wire into live plan/build/status blocking |
@@ -97,15 +97,15 @@
 | # | Slice | Primary code | Test proof | Status |
 |---|-------|--------------|------------|--------|
 | [41](https://github.com/kartikkabadi/foundry/issues/41) | TUI | `packages/cli/src/commands/tui.ts`, `packages/cli/src/tui/render.ts` | `tests/tui-render.test.ts` | **DONE** |
-| [42](https://github.com/kartikkabadi/foundry/issues/42) | Background daemon | `packages/cli/src/commands/daemon.ts` | `tests/daemon-lifecycle.test.ts` | **PARTIAL** — prove real detach/attach and run continuity |
-| [43](https://github.com/kartikkabadi/foundry/issues/43) | macOS notifications | `packages/adapters/src/notify/macos.ts` | `tests/notifications-macos.test.ts` | **PARTIAL** — wire to live run events and setup config |
-| [44](https://github.com/kartikkabadi/foundry/issues/44) | Webhook notifications | `packages/adapters/src/notify/webhook.ts`, `packages/cli/src/commands/notify.ts` | `tests/notifications-webhook.test.ts` | **PARTIAL** — add persisted channel config and live wiring |
-| [45](https://github.com/kartikkabadi/foundry/issues/45) | Marathon policy | `packages/core/src/marathon/policy.ts`, `packages/planner/src/plan/agent-pass-policy.ts` | `tests/marathon-policy.test.ts`, `tests/agent-pass-policy.test.ts` | **PARTIAL** — prove live run metadata and scheduled review pauses |
-| [46](https://github.com/kartikkabadi/foundry/issues/46) | Agent-guided setup | `packages/cli/src/commands/setup.ts` | `tests/setup-agent.test.ts` | **PARTIAL** — implement bounded agent loop with doctor re-runs |
-| [47](https://github.com/kartikkabadi/foundry/issues/47) | GitHub private repo create | `packages/planner/src/build/create-repo-gate.ts`, `packages/cli/src/commands/build.ts` | `tests/create-repo-gate.test.ts` | **PARTIAL / HITL** — requires approved live repo-creation proof |
-| [48](https://github.com/kartikkabadi/foundry/issues/48) | npm distribution + self-update | `packages/cli/src/commands/update.ts`, `scripts/install.sh`, root `package.json` bin | `tests/npm-distribution.test.ts` | **PARTIAL** — add npm pack/global install smoke and registry update proof |
+| [42](https://github.com/kartikkabadi/foundry/issues/42) | Background daemon | `packages/cli/src/commands/daemon.ts`, `daemon/process.ts` | `tests/daemon-lifecycle.test.ts` | **DONE** |
+| [43](https://github.com/kartikkabadi/foundry/issues/43) | macOS notifications | `packages/adapters/src/notify/dispatch.ts`, `config/notifications.ts` | `tests/notifications-config.test.ts` | **DONE** |
+| [44](https://github.com/kartikkabadi/foundry/issues/44) | Webhook notifications | `packages/adapters/src/notify/webhook.ts`, `config/notifications.ts` | `tests/notifications-config.test.ts` | **DONE** |
+| [45](https://github.com/kartikkabadi/foundry/issues/45) | Marathon policy | `marathon/policy.ts`, `plan/agent-pass-policy.ts` | `tests/agent-pass-policy.test.ts` | **DONE** |
+| [46](https://github.com/kartikkabadi/foundry/issues/46) | Agent-guided setup | `planner/setup/suggestions.ts`, `commands/setup.ts` | `tests/setup-agent.test.ts` | **DONE** |
+| [47](https://github.com/kartikkabadi/foundry/issues/47) | GitHub private repo create | `adapters/github-create-repo.ts`, `commands/build.ts` | `tests/create-repo-adapter.test.ts` | **DONE** (HITL for live `gh`) |
+| [48](https://github.com/kartikkabadi/foundry/issues/48) | npm distribution + self-update | `commands/update.ts`, `update-registry.ts` | `tests/npm-distribution.test.ts` | **DONE** |
 | [49](https://github.com/kartikkabadi/foundry/issues/49) | Powerpack guide integration | `packages/core/src/constants/powerpack.ts`, setup/doctor messaging | `tests/powerpack-guide.test.ts` | **DONE** |
-| [50](https://github.com/kartikkabadi/foundry/issues/50) | Production hardening / V5 verification | `docs/CONTEXT.md`, CI/demo references | `tests/v5-verification-matrix.test.ts` | **PARTIAL** — final matrix waits on remaining V5 open issues |
+| [50](https://github.com/kartikkabadi/foundry/issues/50) | Production hardening / V5 verification | `docs/planning/V5_VERIFICATION_MATRIX.md` | `tests/v5-verification-matrix.test.ts` | **DONE** |
 
 ---
 

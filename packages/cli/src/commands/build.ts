@@ -1,7 +1,12 @@
+import { basename } from 'node:path';
 import { assertApproved, GateError } from '@foundry/core/gates.js';
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
 import { loadAutonomyProfileFromRun } from '@foundry/planner/build/autonomy.js';
 import { evaluateCreateRepoGate } from '@foundry/planner/build/create-repo-gate.js';
+import {
+  createPrivateGitHubRepo,
+  createRepoWithGhCli,
+} from '@foundry/adapters/github-create-repo.js';
 import {
   executeBuild,
   handleBuildError,
@@ -62,7 +67,7 @@ export function parseBuildArgs(args: string[]): ParsedBuildArgs {
   return { dryRun, deferIssue, parallel, createRepo, approveCreateRepo };
 }
 
-export function runBuild(args: string[]): void {
+export async function runBuildAsync(args: string[]): Promise<void> {
   const projectRoot = process.cwd();
   const parsed = parseBuildArgs(args);
 
@@ -81,7 +86,7 @@ export function runBuild(args: string[]): void {
       process.exit(1);
     }
 
-    if (parsed.createRepo) {
+    if (parsed.createRepo && !parsed.dryRun) {
       const profile = loadAutonomyProfileFromRun(latest.runDir);
       const gate = evaluateCreateRepoGate(profile, {
         explicitApproval: parsed.approveCreateRepo,
@@ -90,33 +95,49 @@ export function runBuild(args: string[]): void {
         console.error(`foundry build: ${gate.reason}`);
         process.exit(1);
       }
-      console.log('create-repo: approved — would run gh repo create (not executed in v1 stub)');
+      const repoName = basename(projectRoot);
+      try {
+        if (process.env.FOUNDRY_MOCK_GH_CREATE === '1') {
+          console.log(`create-repo: mock created private repo ${repoName}`);
+        } else {
+          const created = await createPrivateGitHubRepo(repoName, async (name) =>
+            createRepoWithGhCli(name),
+          );
+          console.log(`create-repo: created ${created.url}`);
+        }
+      } catch (error) {
+        console.error(`create-repo failed: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
     }
 
-    executeBuild({
-      projectRoot,
-      ref: latest,
-      dryRun: parsed.dryRun,
-      deferIssueNumber: parsed.deferIssue,
-      parallel: parsed.parallel,
-    })
-      .then((ref) => {
-        if (parsed.dryRun) {
-          process.exit(0);
-        }
-        if (ref.run.build?.goal_complete) {
-          console.log('Build complete. Build goal satisfied.');
-        } else if (ref.run.phase === 'build_review') {
-          console.log('Build paused for orchestrator review.');
-        } else {
-          console.log('Build preflight passed and execution progressed.');
-          if (ref.run.build) {
-            console.log(ref.run.next_actions[0] ?? '');
-          }
-        }
-        process.exit(0);
-      })
-      .catch(handleBuildError);
+    let ref;
+    try {
+      ref = await executeBuild({
+        projectRoot,
+        ref: latest,
+        dryRun: parsed.dryRun,
+        deferIssueNumber: parsed.deferIssue,
+        parallel: parsed.parallel,
+      });
+    } catch (error) {
+      handleBuildError(error);
+      return;
+    }
+    if (parsed.dryRun) {
+      process.exit(0);
+    }
+    if (ref.run.build?.goal_complete) {
+      console.log('Build complete. Build goal satisfied.');
+    } else if (ref.run.phase === 'build_review') {
+      console.log('Build paused for orchestrator review.');
+    } else {
+      console.log('Build preflight passed and execution progressed.');
+      if (ref.run.build) {
+        console.log(ref.run.next_actions[0] ?? '');
+      }
+    }
+    process.exit(0);
   } catch (error) {
     if (error instanceof RunStateError) {
       console.error(`foundry build: ${error.message}`);
@@ -124,4 +145,11 @@ export function runBuild(args: string[]): void {
     }
     throw error;
   }
+}
+
+export function runBuild(args: string[]): void {
+  runBuildAsync(args).catch((err) => {
+    console.error('foundry build:', err instanceof Error ? err.message : err);
+    process.exit(2);
+  });
 }

@@ -9,6 +9,7 @@
     "./plan/*": "./dist/plan/*",
     "./publish/*": "./dist/publish/*",
     "./build/*": "./dist/build/*",
+    "./setup/*": "./dist/setup/*",
     "./agent-invoke.js": "./dist/agent-invoke.js"
   },
   "dependencies": {

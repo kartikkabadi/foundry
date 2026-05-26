@@ -11,6 +11,9 @@ import {
 
 describe('agent-pass-policy', () => {
   it('marathon review pause fires at pass 5 before checkpoint interval 10', () => {
+    const prevReviewEvery = process.env.FOUNDRY_MARATHON_REVIEW_EVERY;
+    process.env.FOUNDRY_MARATHON_REVIEW_EVERY = '5';
+    try {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'foundry-marathon-pass-'));
     initProject(projectRoot);
     const ref = createRun(projectRoot, '0.1.0', {
@@ -29,8 +32,20 @@ describe('agent-pass-policy', () => {
 
     const runJson = JSON.parse(
       fs.readFileSync(path.join(ref.runDir, 'run.json'), 'utf8'),
-    ) as { status: string; next_actions: string[] };
+    ) as {
+      status: string;
+      next_actions: string[];
+      marathon?: { review_pause_at_passes: number[] };
+    };
     assert.strictEqual(runJson.status, 'paused');
     assert.match(runJson.next_actions[0] ?? '', /Marathon review/i);
+    assert.ok(runJson.marathon?.review_pause_at_passes.includes(5));
+    } finally {
+      if (prevReviewEvery === undefined) {
+        delete process.env.FOUNDRY_MARATHON_REVIEW_EVERY;
+      } else {
+        process.env.FOUNDRY_MARATHON_REVIEW_EVERY = prevReviewEvery;
+      }
+    }
   });
 });

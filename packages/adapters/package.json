@@ -14,7 +14,8 @@
     "./browser-capture.js": "./dist/browser-capture.js",
     "./cuadriver.js": "./dist/cuadriver.js",
     "./agent-errors.js": "./dist/agent-errors.js",
-    "./notify/*": "./dist/notify/*"
+    "./notify/*": "./dist/notify/*",
+    "./github-create-repo.js": "./dist/github-create-repo.js"
   },
   "dependencies": {
     "@foundry/core": "0.1.0",
