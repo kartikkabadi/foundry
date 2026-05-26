@@ -19,11 +19,13 @@ describe('daemon lifecycle (#42)', () => {
   });
 
   afterEach(() => {
+    delete process.env.FOUNDRY_DAEMON_MOCK;
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
   it('start/stop roundtrip manages pid file', () => {
-    const start = daemonStart(projectRoot, 4242);
+    process.env.FOUNDRY_DAEMON_MOCK = '1';
+    const start = daemonStart(projectRoot);
     assert.strictEqual(start.started, true);
     assert.ok(fs.existsSync(daemonPidPath(projectRoot)));
     assert.strictEqual(daemonStatus(projectRoot).running, true);

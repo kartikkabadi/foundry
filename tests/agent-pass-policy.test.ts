@@ -29,8 +29,13 @@ describe('agent-pass-policy', () => {
 
     const runJson = JSON.parse(
       fs.readFileSync(path.join(ref.runDir, 'run.json'), 'utf8'),
-    ) as { status: string; next_actions: string[] };
+    ) as {
+      status: string;
+      next_actions: string[];
+      marathon?: { review_pause_at_passes: number[] };
+    };
     assert.strictEqual(runJson.status, 'paused');
     assert.match(runJson.next_actions[0] ?? '', /Marathon review/i);
+    assert.ok(runJson.marathon?.review_pause_at_passes.includes(5));
   });
 });

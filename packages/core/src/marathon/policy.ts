@@ -12,11 +12,13 @@ export function marathonPolicyForBudget(budget: RunBudget): MarathonCheckpointPo
     return null;
   }
 
+  const reviewEvery = Number.parseInt(process.env.FOUNDRY_MARATHON_REVIEW_EVERY ?? '5', 10);
+
   return {
     checkpointIntervalPasses: 3,
     loopWarnThreshold: 2,
     loopPauseThreshold: 4,
-    reviewPauseEveryPasses: 5,
+    reviewPauseEveryPasses: Number.isFinite(reviewEvery) && reviewEvery > 0 ? reviewEvery : 5,
   };
 }
 

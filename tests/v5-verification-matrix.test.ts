@@ -36,5 +36,16 @@ describe('v5 verification matrix (#50)', () => {
     const context = readFileSync(path.join(import.meta.dirname, '../CONTEXT.md'), 'utf8');
     assert.match(context, /Doctor/);
     assert.match(context, /Run/);
+    assert.match(context, /Swarm/);
+    assert.doesNotMatch(context, /Swarm.*not implemented/i);
+  });
+
+  it('V5_VERIFICATION_MATRIX.md documents harness scripts', () => {
+    const doc = readFileSync(
+      path.join(import.meta.dirname, '../docs/planning/V5_VERIFICATION_MATRIX.md'),
+      'utf8',
+    );
+    assert.match(doc, /full-cli-harness/);
+    assert.match(doc, /cli-harness/);
   });
 });

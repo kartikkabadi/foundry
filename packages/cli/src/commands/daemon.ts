@@ -1,45 +1,101 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectFoundryDir } from '@foundry/core/state/run-writer.js';
+import {
+  defaultCliPath,
+  isProcessAlive,
+  spawnDetachedDaemon,
+  stopDaemonProcess,
+} from '../daemon/process.js';
 
 export function daemonPidPath(projectRoot: string): string {
   return join(getProjectFoundryDir(projectRoot), 'daemon.pid');
 }
 
-export function daemonStart(projectRoot: string, pid = process.pid): { started: boolean; pid: number } {
+export function daemonHeartbeatPath(projectRoot: string): string {
+  return join(getProjectFoundryDir(projectRoot), 'daemon.heartbeat');
+}
+
+export function daemonStart(projectRoot: string): { started: boolean; pid: number } {
   mkdirSync(getProjectFoundryDir(projectRoot), { recursive: true });
   const pidPath = daemonPidPath(projectRoot);
-  if (existsSync(pidPath)) {
-    return { started: false, pid: Number(readFileSync(pidPath, 'utf8').trim()) };
+  if (process.env.FOUNDRY_DAEMON_MOCK === '1') {
+    const mockPid = 42_042;
+    writeFileSync(pidPath, String(mockPid), 'utf8');
+    writeFileSync(daemonHeartbeatPath(projectRoot), new Date().toISOString(), 'utf8');
+    return { started: true, pid: mockPid };
   }
-  writeFileSync(pidPath, String(pid), 'utf8');
+  if (existsSync(pidPath)) {
+    const existing = Number.parseInt(readFileSync(pidPath, 'utf8').trim(), 10);
+    if (Number.isFinite(existing) && isProcessAlive(existing)) {
+      return { started: false, pid: existing };
+    }
+  }
+
+  const pid = spawnDetachedDaemon({
+    cliPath: defaultCliPath(),
+    projectRoot,
+    pidPath,
+    heartbeatPath: daemonHeartbeatPath(projectRoot),
+  });
   return { started: true, pid };
 }
 
-export function daemonStop(projectRoot: string): { stopped: boolean; pid?: string } {
-  const pidPath = daemonPidPath(projectRoot);
-  if (!existsSync(pidPath)) {
-    return { stopped: false };
-  }
-  const pid = readFileSync(pidPath, 'utf8').trim();
-  unlinkSync(pidPath);
-  return { stopped: true, pid };
+export function daemonStop(projectRoot: string): { stopped: boolean; pid?: number } {
+  return stopDaemonProcess(daemonPidPath(projectRoot));
 }
 
-export function daemonStatus(projectRoot: string): { running: boolean; pid?: string } {
+export function daemonStatus(projectRoot: string): {
+  running: boolean;
+  pid?: string;
+  stale?: boolean;
+} {
   const pidPath = daemonPidPath(projectRoot);
   if (!existsSync(pidPath)) {
     return { running: false };
   }
-  return { running: true, pid: readFileSync(pidPath, 'utf8').trim() };
+  const pid = readFileSync(pidPath, 'utf8').trim();
+  if (process.env.FOUNDRY_DAEMON_MOCK === '1') {
+    return { running: true, pid };
+  }
+  const numeric = Number.parseInt(pid, 10);
+  if (!Number.isFinite(numeric)) {
+    return { running: false, stale: true };
+  }
+  if (!isProcessAlive(numeric)) {
+    return { running: false, stale: true, pid };
+  }
+  return { running: true, pid };
+}
+
+function runDaemonWatch(projectRoot: string): void {
+  const heartbeatPath = daemonHeartbeatPath(projectRoot);
+  const interval = setInterval(() => {
+    writeFileSync(heartbeatPath, new Date().toISOString(), 'utf8');
+  }, 5000);
+  process.on('SIGTERM', () => {
+    clearInterval(interval);
+    process.exit(0);
+  });
 }
 
 export function runDaemon(args: string[]): void {
+  if (args[0] === 'run') {
+    let projectRoot = process.cwd();
+    for (let i = 1; i < args.length; i++) {
+      if (args[i] === '--project') {
+        projectRoot = args[++i] ?? projectRoot;
+      }
+    }
+    runDaemonWatch(projectRoot);
+    return;
+  }
+
   const sub = args[0];
   const projectRoot = process.cwd();
 
   if (!sub || !['start', 'stop', 'status'].includes(sub)) {
-    console.error('Usage: foundry daemon start|stop|status');
+    console.error('Usage: foundry daemon start|stop|status|run');
     process.exit(1);
   }
 
@@ -66,6 +122,8 @@ export function runDaemon(args: string[]): void {
   const status = daemonStatus(projectRoot);
   if (status.running) {
     console.log(`Daemon running (pid ${status.pid})`);
+  } else if (status.stale) {
+    console.log(`Daemon not running (stale pid file${status.pid ? `: ${status.pid}` : ''})`);
   } else {
     console.log('Daemon not running');
   }

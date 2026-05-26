@@ -19,7 +19,8 @@
     "./loop/*": "./dist/loop/*",
     "./conflicts/*": "./dist/conflicts/*",
     "./marathon/*": "./dist/marathon/*",
-    "./constants/*": "./dist/constants/*"
+    "./constants/*": "./dist/constants/*",
+    "./config/notifications.js": "./dist/config/notifications.js"
   },
   "dependencies": {
     "smol-toml": "^1.3.1",

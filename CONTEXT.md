@@ -58,16 +58,16 @@ _Avoid_: manager, lead, coordinator
 An agent executing a single issue slice in an isolated git worktree, producing proofs and stopping at review gates.
 _Avoid_: subagent, builder, implementer
 
-**Swarm** (V4 — not implemented):
-Multiple agents exploring in parallel (e.g. research branches) whose outputs merge with provenance and citations into planning artifacts.
+**Swarm** (V4):
+Multiple agents exploring in parallel (e.g. research branches) whose outputs merge with provenance and citations into planning artifacts (`foundry plan --swarm research [--swarm-branches N]`).
 _Avoid_: parallel agents, fan-out
 
-**Team pack** (V4/V5 — not implemented):
-A TOML-specified set of agent roles, reporting lines, and comms contracts loaded at project init.
+**Team pack** (V4):
+A TOML-specified set of agent roles, reporting lines, and comms contracts loaded at project init (`foundry init --team pack.toml`).
 _Avoid_: agent team, crew config
 
-**Handoff** (V4 — partial; plan-only comms today):
-A required comms artifact published when an agent completes work assigned via `reports_to` / `must_publish` contracts.
+**Handoff** (V4):
+A required comms artifact published when a governed role completes work (`must_publish`); build preflight enforces handoffs and logs `handoff_published` events.
 _Avoid_: transfer, sync doc
 
 ### Capabilities and checks

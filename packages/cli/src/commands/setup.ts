@@ -4,6 +4,11 @@ import { createDefaultDeps } from '@foundry/doctor/deps.js';
 import { applyDoctorFix } from '@foundry/doctor/fix.js';
 import { printDoctorReport } from '@foundry/doctor/report.js';
 import { runDoctorChecks } from '@foundry/doctor/run.js';
+import { MAX_AGENT_TURNS, runSetupAgentTurn } from '@foundry/planner/setup/suggestions.js';
+import {
+  loadNotificationsConfig,
+  saveNotificationsConfig,
+} from '@foundry/core/config/notifications.js';
 
 const MAX_SETUP_ROUNDS = 5;
 
@@ -59,11 +64,21 @@ async function executeSetup(mode: SetupMode): Promise<void> {
     'Pi Extension Pack guide: https://github.com/kartikkabadi/pi-composer-powerpack (agent-feedable setup path).\n',
   );
 
-  if (process.env.FOUNDRY_SETUP_AGENT === '1' && mode !== 'expert') {
+  const agentMode = process.env.FOUNDRY_SETUP_AGENT === '1' && mode !== 'expert';
+  if (agentMode) {
     console.log(
-      'Agent-guided setup: bounded suggestions enabled (max 3 turns); doctor re-runs each round.\n',
+      `Agent-guided setup: bounded suggestions enabled (max ${MAX_AGENT_TURNS} turns); doctor re-runs each round.\n`,
     );
   }
+
+  if (process.stdin.isTTY && process.env.FOUNDRY_ENABLE_NOTIFICATIONS === '1') {
+    const config = loadNotificationsConfig();
+    config.macos.enabled = process.platform === 'darwin';
+    saveNotificationsConfig(config);
+    console.log('Notifications enabled in ~/.foundry/notifications.toml\n');
+  }
+
+  let agentTurn = 0;
 
   for (let round = 1; round <= MAX_SETUP_ROUNDS; round++) {
     if (round > 1) {
@@ -109,13 +124,20 @@ async function executeSetup(mode: SetupMode): Promise<void> {
     }
 
     console.log('\nFix these in dependency order:');
-    failures.forEach((check, index) => {
-      console.log(`${index + 1}. [${check.id}] ${check.repair ?? check.message}`);
-      if (process.env.FOUNDRY_SETUP_AGENT === '1' && mode !== 'expert') {
-        const hint = check.repair ?? check.message;
-        console.log(`   → Suggested: ${hint}`);
-      }
-    });
+    if (agentMode && agentTurn < MAX_AGENT_TURNS) {
+      agentTurn += 1;
+      const suggestions = await runSetupAgentTurn(
+        failures.map((c) => ({ id: c.id, message: c.message, repair: c.repair })),
+        agentTurn,
+      );
+      suggestions.forEach((hint, index) => {
+        console.log(`${index + 1}. ${hint}`);
+      });
+    } else {
+      failures.forEach((check, index) => {
+        console.log(`${index + 1}. [${check.id}] ${check.repair ?? check.message}`);
+      });
+    }
 
     console.log('\nSetup does not install packages or edit Pi/Cursor config automatically.');
     console.log('See docs/TROUBLESHOOTING.md for Pi, Cursor, and GitHub setup.');

@@ -24,6 +24,7 @@ import { toProofRecord } from './proof-registry.js';
 import { readProofJson } from './proof-registry.js';
 import { BuildPreflightError } from './errors.js';
 import { assertNoBlockingConflicts, runTeamCommsPreflight } from './team-preflight.js';
+import { publishTeamHandoffs } from './publish-handoffs.js';
 
 export interface ExecuteBuildOptions {
   projectRoot: string;
@@ -357,6 +358,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<RunRef
   }
 
   assertNoBlockingConflicts(ref.runDir);
+  publishTeamHandoffs(projectRoot, ref.runDir);
   runTeamCommsPreflight(projectRoot, ref.runDir, { requireHandoffs: true });
   build = evaluateBuildGoalComplete(build);
   const awaitingReview = build.review_status === 'pending';

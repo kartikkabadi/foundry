@@ -75,6 +75,12 @@ const runJsonSchema = z.object({
       goal_complete: z.boolean(),
     })
     .optional(),
+  marathon: z
+    .object({
+      review_pause_at_passes: z.array(z.number().int().nonnegative()),
+      checkpoint_interval_passes: z.number().int().positive(),
+    })
+    .optional(),
 });
 
 function formatZodIssues(error: z.ZodError): string {
