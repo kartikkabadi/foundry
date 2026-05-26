@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 import { assertApproved, GateError } from '@foundry/core/gates.js';
 import { findLatestRun, RunStateError } from '@foundry/core/state/run-writer.js';
@@ -99,7 +99,7 @@ export async function runBuildAsync(args: string[]): Promise<void> {
           console.log(`create-repo: mock created private repo ${repoName}`);
         } else {
           const created = await createPrivateGitHubRepo(repoName, async (name) => {
-            execSync('gh', ['repo', 'create', name, '--private'], { stdio: 'pipe' });
+            execFileSync('gh', ['repo', 'create', name, '--private'], { stdio: 'pipe' });
             return { name, url: `https://github.com/kartikkabadi/${name}` };
           });
           console.log(`create-repo: created ${created.url}`);

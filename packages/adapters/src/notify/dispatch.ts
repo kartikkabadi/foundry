@@ -2,7 +2,7 @@ import { loadNotificationsConfig } from '@foundry/core/config/notifications.js';
 import { createMacosNotifyPort } from './macos.js';
 import { createWebhookNotifyPort } from './webhook.js';
 import type { NotifyPayload } from './port.js';
-import { exec } from 'node:child_process';
+import { spawn } from 'node:child_process';
 
 const defaultPost = async (url: string, body: Record<string, unknown>) => {
   const f = (globalThis as any).fetch;
@@ -21,7 +21,10 @@ const defaultMacosNotifier = {
     if (process.platform !== 'darwin') return;
     const t = title.replace(/["\\]/g, '\\$&');
     const b = body.replace(/["\\]/g, '\\$&');
-    exec(`osascript -e 'display notification "${b}" with title "${t}"'`, { stdio: 'ignore' });
+    spawn('osascript', ['-e', `display notification "${b}" with title "${t}"`], {
+      stdio: 'ignore',
+      detached: true,
+    }).unref();
   },
 };
 
