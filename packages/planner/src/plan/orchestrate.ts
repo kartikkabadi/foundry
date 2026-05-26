@@ -448,7 +448,11 @@ async function orchestrateFromPhase(
       event: 'approval_waiting',
       title: 'Foundry',
       body: 'Plan awaiting approval — review artifacts in .foundry/runs/',
-    }).catch(() => undefined);
+    }).catch((err) => {
+      console.warn(
+        `approval notification failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
   }
 
   return ref;

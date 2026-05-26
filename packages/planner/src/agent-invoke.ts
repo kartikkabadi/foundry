@@ -45,7 +45,11 @@ export async function invokeAgentWithCheckpoint(options: {
       event: 'rate_limit_pause',
       title: 'Foundry',
       body: `Composer rate limited — resume with foundry resume (model: ${modelId})`,
-    }).catch(() => undefined);
+    }).catch((err) => {
+      console.warn(
+        `rate-limit notification failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
 
     throw new RateLimitCheckpointError({ ...paused, run }, modelId);
   }
