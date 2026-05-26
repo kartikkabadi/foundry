@@ -20,27 +20,47 @@ fi
 
 send() {
   "${TMUX_CMD[@]}" send-keys -t "$SESSION:0.0" "$1" C-m
-  sleep 0.6
 }
 
 capture() {
-  "${TMUX_CMD[@]}" capture-pane -pt "$SESSION:0.0" -S -200 | tail -n 120
+  "${TMUX_CMD[@]}" capture-pane -pt "$SESSION:0.0" -S -200
+}
+
+wait_for() {
+  local pattern="$1"
+  local label="$2"
+  for _ in $(seq 1 80); do
+    local out
+    out="$(capture)"
+    if echo "$out" | grep -qE "$pattern"; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "FAIL: timed out waiting for $label"
+  capture
+  exit 1
 }
 
 echo "==> harness session $SESSION in $WORK"
 
 send "node \"$CLI\" --version"
+wait_for '0\.1\.0' "version output"
 send "node \"$CLI\" --help"
+wait_for 'Usage: foundry <command>' "help output"
 send "mkdir -p project && cd project"
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" init"
+wait_for 'project initialized|config\.toml' "init output"
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" doctor --for plan"
+wait_for 'Foundry doctor \(for=plan\)' "doctor output"
 send "FOUNDRY_HOME=\"$WORK/home\" node \"$CLI\" status"
+wait_for 'No runs yet|Run .* \(' "status output"
 
 OUT="$(capture)"
 echo "$OUT"
 
 echo "$OUT" | grep -qE 'Foundry v|foundry@|0\.1\.0' || { echo 'FAIL: missing version output'; exit 1; }
-echo "$OUT" | grep -qiE 'foundry doctor|doctor \(for=' || { echo 'FAIL: doctor did not run'; exit 1; }
+echo "$OUT" | grep -qiE 'Foundry doctor|doctor \(for=' || { echo 'FAIL: doctor did not run'; exit 1; }
 echo "$OUT" | grep -qiE 'project initialized|config\.toml' || { echo 'FAIL: init did not run'; exit 1; }
 
 echo "==> cli-harness OK"

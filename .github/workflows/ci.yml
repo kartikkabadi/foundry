@@ -40,3 +40,9 @@ jobs:
 
       - name: Demo build smoke (mock Composer)
         run: FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh
+
+      - name: CLI harness (tmux)
+        run: bash scripts/cli-harness.sh
+
+      - name: Full CLI harness (all commands, no live plan without key)
+        run: bash scripts/full-cli-harness.sh

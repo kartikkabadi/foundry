@@ -37,16 +37,18 @@ Use a fresh worktree if your checkout is behind or has uncommitted doc edits you
 ## Verify before claiming done
 
 ```bash
-npm run build && npm test                    # expect 229 pass on current main
+npm run build && npm test                    # expect 230 pass on current main
 bash scripts/demo.sh
 FOUNDRY_BUILD_MOCK=1 bash scripts/demo-build.sh
+bash scripts/cli-harness.sh                  # tmux smoke (version, init, doctor, status)
+bash scripts/full-cli-harness.sh             # all dispatch commands (+ live plan if CURSOR_API_KEY)
 ```
 
 Paste command output in the PR or issue comment.
 
 ## Last verified
 
-2026-05-25 — `npm test` 229/229 pass; `scripts/demo.sh` exit 0; `FOUNDRY_BUILD_MOCK=1 scripts/demo-build.sh` exit 0; `scripts/cli-harness.sh` exit 0 on `main` @ `09eb047+`. Not verified: live Composer plan on a real idea.
+2026-05-26 — `npm test` 230/230 pass; `scripts/demo.sh` exit 0; `FOUNDRY_BUILD_MOCK=1 scripts/demo-build.sh` exit 0; `scripts/cli-harness.sh` + `scripts/full-cli-harness.sh` exit 0 (live plan verified with `CURSOR_API_KEY` in Cloud).
 
 ## Session rules
 

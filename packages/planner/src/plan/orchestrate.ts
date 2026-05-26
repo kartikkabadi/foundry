@@ -42,7 +42,7 @@ import {
   evaluateAgentPassAfterIncrement,
   recordLoopSignal,
 } from './agent-pass-policy.js';
-import { writeConflict } from '@foundry/core/conflicts/conflict.js';
+import { listOpenConflicts, writeConflict } from '@foundry/core/conflicts/conflict.js';
 import { runResearchSwarm } from './swarm.js';
 import { detectSwarmDisagreement } from './swarm-disagreement.js';
 import {
@@ -205,6 +205,25 @@ function finishPhase(ref: RunRef, phase: string, summary: string): void {
   });
 }
 
+function approvalGateActions(runDir: string): {
+  next_actions: string[];
+  blocked_actions: string[];
+} {
+  const openConflicts = listOpenConflicts(runDir);
+  if (openConflicts.length === 0) {
+    return {
+      next_actions: ['Review artifacts and run `foundry approve` to continue'],
+      blocked_actions: ['build', 'publish issues'],
+    };
+  }
+
+  const ids = openConflicts.map((conflict) => conflict.id).join(', ');
+  return {
+    next_actions: [`Resolve open conflicts before approval: ${ids}`],
+    blocked_actions: ['approve', 'build', 'publish issues'],
+  };
+}
+
 interface OrchestrateContext {
   referenceUrl?: string;
   swarmResearch?: boolean;
@@ -258,6 +277,7 @@ async function orchestrateFromPhase(
       const swarm = await runResearchSwarm(ref, {
         idea,
         branchCount: context.swarmBranches ?? 2,
+        parallel: true,
         runSwarm: async (branchId, branchIdea) => {
           const pass = await consumeAgentPass(ref, projectRoot, 'swarm_research', deps, () =>
             deps.promptAgent(buildResearchPrompt(branchIdea, intakeMd), projectRoot),
@@ -281,6 +301,12 @@ async function orchestrateFromPhase(
           summary: disagreement.summary,
           status: 'open',
           created_at: new Date().toISOString(),
+        });
+        appendEvent(ref.runDir, {
+          type: 'conflict_raised',
+          phase: 'research',
+          summary: disagreement.summary,
+          thread: 'research.md',
         });
       }
     } else {
@@ -388,10 +414,11 @@ async function orchestrateFromPhase(
     writtenArtifacts.push('autonomy-contract.md');
     finishPhase(ref, 'synthesis', 'Plan synthesis complete — awaiting approval');
 
+    const gateActions = approvalGateActions(ref.runDir);
     ref = updateRunStatus(projectRoot, ref.runId, 'awaiting_approval', {
       phase: 'awaiting_approval',
-      next_actions: ['Review artifacts and run `foundry approve` to continue'],
-      blocked_actions: ['build', 'publish issues'],
+      next_actions: gateActions.next_actions,
+      blocked_actions: gateActions.blocked_actions,
       artifacts: [
         'intake.md',
         'research.md',
@@ -477,14 +504,26 @@ export function printPlanCompleteBanner(ref: RunRef): void {
     'autonomy-contract.md',
   ];
 
-  console.log('\nPlan complete — approve to continue\n');
+  const openConflicts = listOpenConflicts(ref.runDir);
+  const hasOpenConflicts = openConflicts.length > 0;
+
+  console.log(
+    hasOpenConflicts
+      ? '\nPlan complete — conflicts require resolution\n'
+      : '\nPlan complete — approve to continue\n',
+  );
   console.log(`Run: ${ref.runId}`);
   console.log(`Directory: ${ref.runDir}\n`);
   console.log('Artifacts:');
   for (const name of paths) {
     console.log(`  ${join(ref.runDir, name)}`);
   }
-  console.log('\nStatus: awaiting_approval (build blocked until approved)');
+  if (hasOpenConflicts) {
+    const ids = openConflicts.map((conflict) => conflict.id).join(', ');
+    console.log(`\nStatus: awaiting_approval (approval/build blocked by open conflicts: ${ids})`);
+  } else {
+    console.log('\nStatus: awaiting_approval (build blocked until approved)');
+  }
 }
 
 export function handlePlanError(err: unknown): never {

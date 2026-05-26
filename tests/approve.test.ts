@@ -10,6 +10,7 @@ import {
   createRun,
   initProject,
 } from '@foundry/core/state/run-writer.js';
+import { writeConflict } from '@foundry/core/conflicts/conflict.js';
 import { executeBuild } from '@foundry/planner/build/orchestrate.js';
 import { FIXTURE_ISSUE_PLAN, mockDoctorDeps, seedApprovedBuildRun } from './build-fixtures.js';
 
@@ -39,6 +40,27 @@ describe('foundry approve (V2-7)', () => {
     const approved = approveRun(projectRoot, 'approve-me');
     assert.strictEqual(approved.run.status, 'approved');
     assert.deepStrictEqual(approved.run.blocked_actions, []);
+  });
+
+  it('approve rejects runs with open conflicts', () => {
+    const ref = createRun(projectRoot, '0.1.0', {
+      run_id: 'conflicted-plan',
+      status: 'awaiting_approval',
+      phase: 'awaiting_approval',
+      blocked_actions: ['approve', 'build'],
+    });
+    writeConflict(ref.runDir, {
+      id: 'scope-conflict',
+      prd_section: 'prd.md#scope',
+      summary: 'Research branches disagree on scope.',
+      status: 'open',
+      created_at: new Date().toISOString(),
+    });
+
+    assert.throws(
+      () => approveRun(projectRoot, 'conflicted-plan'),
+      /open conflicts \(scope-conflict\)/,
+    );
   });
 
   it('approve is idempotent for already approved runs', () => {
@@ -108,5 +130,33 @@ describe('foundry approve (V2-7)', () => {
       fs.readFileSync(path.join(projectRoot, '.foundry', 'runs', 'cli-approve', 'run.json'), 'utf8'),
     );
     assert.strictEqual(runJson.status, 'approved');
+  });
+
+  it('foundry approve CLI rejects open conflicts', () => {
+    const ref = createRun(projectRoot, '0.1.0', {
+      run_id: 'cli-conflicted-plan',
+      status: 'awaiting_approval',
+      phase: 'awaiting_approval',
+    });
+    writeConflict(ref.runDir, {
+      id: 'cli-scope-conflict',
+      prd_section: 'prd.md#scope',
+      summary: 'Research branches disagree on scope.',
+      status: 'open',
+      created_at: new Date().toISOString(),
+    });
+
+    assert.throws(
+      () =>
+        execSync(`node "${CLI}" approve`, {
+          encoding: 'utf8',
+          cwd: projectRoot,
+        }),
+      (err: NodeJS.ErrnoException & { status?: number; stderr?: string }) => {
+        assert.notStrictEqual(err.status, 0);
+        assert.ok(String(err.stderr ?? '').includes('open conflicts (cli-scope-conflict)'));
+        return true;
+      },
+    );
   });
 });
