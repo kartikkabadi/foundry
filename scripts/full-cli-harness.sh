@@ -13,10 +13,30 @@ PROJECT="$WORK/project"
 export FOUNDRY_HOME="$WORK/home"
 mkdir -p "$PROJECT"
 
+LIVE_READY=0
+if [ -n "${CURSOR_API_KEY:-}" ]; then
+  LIVE_READY=1
+fi
+
 run() {
   echo ""
   echo "==> $*"
   (cd "$PROJECT" && node "$CLI" "$@")
+}
+
+# Doctor may exit 1 without Pi/Cursor credentials (expected in CI); require pass when LIVE_READY.
+run_doctor() {
+  echo ""
+  echo "==> doctor $*"
+  set +e
+  OUT="$(cd "$PROJECT" && node "$CLI" doctor "$@")"
+  EC=$?
+  set -e
+  echo "$OUT"
+  echo "$OUT" | grep -q 'Foundry doctor' || fail 'doctor produced no report'
+  if [ "$LIVE_READY" = 1 ] && [ "$EC" -ne 0 ]; then
+    fail "doctor exited $EC with CURSOR_API_KEY set"
+  fi
 }
 
 fail() {
@@ -41,11 +61,12 @@ mkdir -p "$TEAM_WORK/proj"
   | grep -q 'team:' || fail 'team pack init'
 
 # doctor variants
-run doctor --for plan
-run doctor --for setup
-run doctor --for build
-run doctor --json --for plan | grep -q '"checks"' || fail 'doctor json'
-run doctor --deep --for plan
+run_doctor --for plan
+run_doctor --for setup
+run_doctor --for build
+JSON_DOC="$(cd "$PROJECT" && node "$CLI" doctor --json --for plan 2>&1)" || true
+echo "$JSON_DOC" | grep -q '"checks"' || fail 'doctor json'
+run_doctor --deep --for plan
 
 # fixture plan (mock composer via script — not foundry plan CLI)
 echo "==> fixture plan smoke"
@@ -84,8 +105,9 @@ test -d "$RUN_PATH/issues" || fail 'issue drafts'
   git add README.md
   git commit -q -m 'harness init'
 )
+export FOUNDRY_BUILD_MOCK=1
 run build --dry-run
-FOUNDRY_BUILD_MOCK=1 run build
+run build
 
 # post-v1 commands
 run tui
