@@ -89,6 +89,8 @@ This is a standalone TypeScript/Node CLI — no servers, databases, or Docker re
 
 **Live plan/build requires `CURSOR_API_KEY`:** Without it, `foundry doctor` reports FAIL for `cursor-sdk` and `composer-2.5-standard` — this is expected. Tests, demos, and all mocked workflows work without it. Set the secret if live Composer integration is needed.
 
+**Pi CLI stub:** The `pi-cli` doctor check is required for `foundry plan` preflight. A stub at `/usr/local/bin/pi` satisfies it. If missing, recreate: `sudo sh -c 'printf "#!/bin/sh\necho \"pi 0.0.0-stub\"" > /usr/local/bin/pi && chmod +x /usr/local/bin/pi'`. The actual Pi runtime is not invoked during plan or build workflows.
+
 **Mock env vars for testing:** `FOUNDRY_PI_MOCK=1`, `FOUNDRY_BROWSER_MOCK=1`, `FOUNDRY_CUADRIVER_MOCK=1`, `FOUNDRY_BUILD_MOCK=1` enable mock adapters for CI-safe testing.
 
 ---
