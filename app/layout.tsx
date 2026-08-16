@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { AppShell } from "@/app/_components/app-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { listIssues, navCounts } from "@/lib/foundry/store";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -24,11 +26,20 @@ export const metadata: Metadata = {
   description: "Human-in-the-loop software factory",
 };
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
+  const issues = listIssues().map((issue) => ({ id: issue.id, idea: issue.idea }));
+  const counts = navCounts();
   return (
     <html className={cn("dark", sans.variable, mono.variable)} lang="en">
       <body className="bg-black text-neutral-100">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <AppShell counts={counts} issues={issues}>
+            {children}
+          </AppShell>
+        </TooltipProvider>
       </body>
     </html>
   );
