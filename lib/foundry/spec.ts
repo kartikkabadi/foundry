@@ -26,6 +26,10 @@ const inflight = (globalThis as typeof globalThis & {
   __foundrySpec?: Map<string, Promise<void>>;
 }).__foundrySpec ??= new Map();
 
+export function specInflight(issueId: string): boolean {
+  return inflight.has(issueId);
+}
+
 export function startSpec(issueId: string): void {
   if (inflight.has(issueId)) return;
   const work = runSpec(issueId).finally(() => {

@@ -53,6 +53,10 @@ export function grillFrontierEmpty(issueId: string): boolean {
   return tickets.length > 0 && unansweredTicketCount(issueId) === 0;
 }
 
+export function grillInflight(issueId: string): boolean {
+  return GRILL_INFLIGHT.has(issueId);
+}
+
 export function startGrill(issueId: string): void {
   if (GRILL_INFLIGHT.has(issueId)) return;
   if (isGrillHeld(issueId)) return;

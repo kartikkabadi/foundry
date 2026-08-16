@@ -52,6 +52,10 @@ const inflight = (globalThis as typeof globalThis & {
   __foundryResearch?: Map<string, Promise<void>>;
 }).__foundryResearch ??= new Map();
 
+export function researchInflight(issueId: string): boolean {
+  return inflight.has(issueId);
+}
+
 export function startResearch(issueId: string): void {
   if (inflight.has(issueId)) return;
   const work = runResearch(issueId).finally(() => {

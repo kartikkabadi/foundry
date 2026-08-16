@@ -17,6 +17,10 @@ export type StageId = (typeof STAGES)[number];
 
 export type IssueSize = "xs" | "s" | "m" | "l" | "forced_l";
 
+export const RUN_MODES = ["hitl", "oneshot"] as const;
+
+export type RunMode = (typeof RUN_MODES)[number];
+
 export type StageStatus = "pending" | "active" | "blocked" | "skipped" | "done";
 
 export type GateKind = "grill" | "plan" | "phase" | "evidence";
@@ -72,6 +76,9 @@ export type Issue = {
   targetUrl: string;
   size: IssueSize;
   currentStage: StageId;
+  runMode: RunMode;
+  walkHold: boolean;
+  oneshotStopReason: string | null;
   projectId: string | null;
   cycleId: string | null;
   moduleId: string | null;
@@ -130,6 +137,14 @@ export type NavCounts = {
   cycles: number;
   modules: number;
 };
+
+export function parseRunMode(value: string | null | undefined): RunMode {
+  return value === "oneshot" ? "oneshot" : "hitl";
+}
+
+export function isOneshotWalking(issue: Pick<Issue, "runMode" | "walkHold" | "oneshotStopReason">): boolean {
+  return issue.runMode === "oneshot" && !issue.walkHold && !issue.oneshotStopReason;
+}
 
 export function skippedStages(size: IssueSize): Partial<Record<StageId, string>> {
   if (size === "forced_l" || size === "l") return {};

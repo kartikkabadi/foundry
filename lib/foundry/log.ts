@@ -13,7 +13,12 @@ export type EventReason =
   | "manual-advance"
   | "manual-complete"
   | "retry"
-  | "re-run";
+  | "re-run"
+  | "oneshot"
+  | "pause"
+  | "resume"
+  | "cancel"
+  | "merge-not-real";
 
 export type EventActor = {
   source: EventSource;
