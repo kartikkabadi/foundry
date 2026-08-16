@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { appendEvent } from "./log";
+import { appendEvent, type EventActor } from "./log";
 import { dbPath } from "./paths";
 import {
   STAGES,
@@ -93,6 +93,7 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issues", "project_id", "TEXT");
   ensureColumn(conn, "issues", "cycle_id", "TEXT");
   ensureColumn(conn, "issues", "module_id", "TEXT");
+  ensureColumn(conn, "issues", "grill_hold", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(conn, "issue_jobs", "heartbeat_at", "TEXT");
 }
 
@@ -113,6 +114,8 @@ function database(): DatabaseSync {
     db.exec(SCHEMA);
     migrate(db);
     backfillProjects(db);
+  } else {
+    migrate(db);
   }
   return db;
 }
@@ -429,7 +432,10 @@ export function assignIssue(
   return updated.issue;
 }
 
-export function completeActiveStage(issueId: string): Issue {
+export function completeActiveStage(
+  issueId: string,
+  actor: EventActor = { source: "system", reason: "auto-complete" },
+): Issue {
   const loaded = getIssue(issueId);
   if (!loaded) throw new Error("unknown issue");
   const conn = database();
@@ -449,7 +455,7 @@ export function completeActiveStage(issueId: string): Issue {
       conn.prepare("UPDATE issues SET updated_at = ? WHERE id = ?").run(now, issueId);
     }
     conn.exec("COMMIT");
-    appendEvent(issueId, "stage.completed", { stage: current, next: next ?? null });
+    appendEvent(issueId, "stage.completed", { stage: current, next: next ?? null }, actor);
   } catch (error) {
     conn.exec("ROLLBACK");
     throw error;
@@ -623,6 +629,40 @@ export function answerDecisionTicket(id: string, answer: string): DecisionTicket
 export function unansweredTicketCount(issueId: string): number {
   const tickets = listDecisionTickets(issueId);
   return tickets.filter((ticket) => !ticket.answer).length;
+}
+
+export function isGrillHeld(issueId: string): boolean {
+  const row = database().prepare("SELECT grill_hold FROM issues WHERE id = ?").get(issueId) as
+    | { grill_hold: number | null }
+    | undefined;
+  return Boolean(row?.grill_hold);
+}
+
+export function setGrillHold(issueId: string, held: boolean): void {
+  const now = new Date().toISOString();
+  database()
+    .prepare("UPDATE issues SET grill_hold = ?, updated_at = ? WHERE id = ?")
+    .run(held ? 1 : 0, now, issueId);
+  appendEvent(
+    issueId,
+    held ? "grill.hold" : "grill.hold_released",
+    {},
+    { source: "operator", reason: held ? "hold" : undefined },
+  );
+}
+
+export function clearTicketAnswer(id: string): DecisionTicket {
+  const row = database().prepare("SELECT * FROM decision_tickets WHERE id = ?").get(id) as
+    | Record<string, unknown>
+    | undefined;
+  if (!row) throw new Error("unknown Decision ticket");
+  database().prepare("UPDATE decision_tickets SET answer = NULL WHERE id = ?").run(id);
+  const updated = database().prepare("SELECT * FROM decision_tickets WHERE id = ?").get(id) as Record<
+    string,
+    unknown
+  >;
+  appendEvent(String(row.issue_id), "grill.reopened", { ticketId: id }, { source: "operator", reason: "reopen" });
+  return mapTicket(updated);
 }
 
 export function currentGrillRound(issueId: string): number {

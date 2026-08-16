@@ -2,6 +2,24 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { logPath } from "./paths";
 
+export type EventSource = "system" | "operator";
+
+export type EventReason =
+  | "auto-advance"
+  | "auto-complete"
+  | "force-finish"
+  | "hold"
+  | "reopen"
+  | "manual-advance"
+  | "manual-complete"
+  | "retry"
+  | "re-run";
+
+export type EventActor = {
+  source: EventSource;
+  reason?: EventReason;
+};
+
 export type FoundryEvent = {
   ts: string;
   issueId: string;
@@ -9,12 +27,21 @@ export type FoundryEvent = {
   payload: Record<string, unknown>;
 };
 
-export function appendEvent(issueId: string, kind: string, payload: Record<string, unknown> = {}): FoundryEvent {
+export function appendEvent(
+  issueId: string,
+  kind: string,
+  payload: Record<string, unknown> = {},
+  actor: EventActor = { source: "system" },
+): FoundryEvent {
   const event: FoundryEvent = {
     ts: new Date().toISOString(),
     issueId,
     kind,
-    payload,
+    payload: {
+      ...payload,
+      source: actor.source,
+      reason: actor.reason ?? null,
+    },
   };
   const path = logPath(issueId);
   mkdirSync(dirname(path), { recursive: true });
