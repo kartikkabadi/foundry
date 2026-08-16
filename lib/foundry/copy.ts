@@ -1,4 +1,4 @@
-import type { IssueJob, JobStatus, StageId, StageStatus } from "./types";
+import { isOneshotWalking, type Issue, type IssueJob, type JobStatus, type RunMode, type StageId, type StageStatus } from "./types";
 
 export const STAGE_LABEL: Record<StageId, string> = {
   intake: "Intake",
@@ -66,14 +66,49 @@ export function jobStatusLabel(status: JobStatus): string {
 export function nowWhat(
   stage: StageId,
   job: IssueJob | null,
-  extras?: { unansweredTickets?: number },
+  extras?: {
+    unansweredTickets?: number;
+    runMode?: RunMode;
+    walkHold?: boolean;
+    oneshotStopReason?: string | null;
+  },
 ): string {
+  if (extras?.oneshotStopReason) return extras.oneshotStopReason;
+  if (extras?.runMode === "oneshot" && extras.walkHold) {
+    return "One shot is paused. Resume to keep walking, or work this stage by hand.";
+  }
+  if (extras?.runMode === "oneshot" && job?.status === "running") {
+    return `${jobVerb(stage)}. One shot will take the next gate from the worker recommendation.`;
+  }
   if (job?.status === "running") return `${jobVerb(stage)}.`;
   if (job?.status === "failed") {
     return `${STAGE_LABEL[stage]} failed. Retry it — the worker is not still working.`;
   }
   if (job?.status === "stale") {
     return `${STAGE_LABEL[stage]} stalled. Retry it — the worker is not still working.`;
+  }
+  if (extras?.runMode === "oneshot") {
+    switch (stage) {
+      case "grill":
+        return "One shot will answer Decision tickets with the worker recommendation. You can override any ticket.";
+      case "merge":
+        return "One shot stops here. Foundry does not merge to GitHub yet.";
+      case "intake":
+      case "research":
+      case "spec":
+      case "improve":
+      case "plan_pack":
+      case "council":
+      case "architecture":
+      case "execute":
+      case "evidence":
+      case "hygiene":
+        return "One shot is walking. Gates auto-resolve from worker recommendations.";
+      default: {
+        const _exhaustive: never = stage;
+        return _exhaustive;
+      }
+    }
   }
   switch (stage) {
     case "intake":
@@ -140,11 +175,17 @@ export function gateNowWhat(stage: StageId): string {
   }
 }
 
-export function issueListStatus(stage: StageId, job: IssueJob | null): string {
-  if (job?.status === "failed") return `${STAGE_LABEL[stage]} failed`;
-  if (job?.status === "stale") return `${STAGE_LABEL[stage]} stalled`;
-  if (job?.status === "running") return jobVerb(stage);
-  switch (stage) {
+export function issueListStatus(issue: Issue, job: IssueJob | null): string {
+  if (issue.oneshotStopReason) return "One shot stopped";
+  if (isOneshotWalking(issue)) {
+    if (job?.status === "failed") return `${STAGE_LABEL[issue.currentStage]} failed`;
+    if (job?.status === "stale") return `${STAGE_LABEL[issue.currentStage]} stalled`;
+    return "One shot walking";
+  }
+  if (job?.status === "failed") return `${STAGE_LABEL[issue.currentStage]} failed`;
+  if (job?.status === "stale") return `${STAGE_LABEL[issue.currentStage]} stalled`;
+  if (job?.status === "running") return jobVerb(issue.currentStage);
+  switch (issue.currentStage) {
     case "grill":
     case "plan_pack":
     case "execute":
@@ -160,9 +201,9 @@ export function issueListStatus(stage: StageId, job: IssueJob | null): string {
     case "architecture":
     case "merge":
     case "hygiene":
-      return STAGE_LABEL[stage];
+      return STAGE_LABEL[issue.currentStage];
     default: {
-      const _exhaustive: never = stage;
+      const _exhaustive: never = issue.currentStage;
       return _exhaustive;
     }
   }

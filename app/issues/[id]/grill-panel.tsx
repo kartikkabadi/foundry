@@ -10,18 +10,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { GRILL_EMPTY_NOT_DONE } from "@/lib/foundry/grill";
-import type { DecisionTicket, IssueJob } from "@/lib/foundry/types";
+import type { DecisionTicket, IssueJob, RunMode } from "@/lib/foundry/types";
 
 export function GrillPanel({
   tickets,
   job,
   issueId,
   held,
+  runMode = "hitl",
 }: {
   tickets: DecisionTicket[];
   job: IssueJob | null;
   issueId: string;
   held: boolean;
+  runMode?: RunMode;
 }) {
   const unanswered = tickets.filter((ticket) => !ticket.answer);
   if (job?.status === "running") {
@@ -65,8 +67,10 @@ export function GrillPanel({
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">
-        Grill is the first hard stop. {unanswered.length} of {tickets.length} tickets still need an
-        answer. The recommendation is a suggestion, not a decision until you say so.
+        {runMode === "oneshot"
+          ? "One shot will take each recommendation unless you override. Tickets and answers still persist."
+          : "Grill is the first hard stop. The recommendation is a suggestion, not a decision until you say so."}{" "}
+        {unanswered.length} of {tickets.length} tickets still need an answer.
         {held ? " This round is held. Release hold to let the next round start on its own." : null}
       </p>
       {tickets.map((ticket) => (

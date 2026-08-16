@@ -26,6 +26,12 @@ The stages that actually run for one Issue. Collapse may mark a stage SKIPPED. R
 **Size**:
 XS, S, M, L, or forced-L. Forced-L skips nothing (first Foundry self-job).
 
+**Run mode**:
+`hitl` (default) or `oneshot`. Chosen on intake. HITL Issues still stop at gates.
+
+**One shot**:
+Foundry keeps walking after the HTTP request. Grill tickets auto-answer with the worker recommendation. Other gates auto-resolve from that recommendation. Operator can pause, cancel back to HITL, or override. Does not merge to GitHub until that path is real.
+
 ## Relationships
 
 - The **Issue tracker** holds many **Issues**

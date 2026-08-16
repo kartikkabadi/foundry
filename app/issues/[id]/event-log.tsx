@@ -13,6 +13,12 @@ export function EventLog({ events }: { events: FoundryEvent[] }) {
               <span className="text-muted-foreground">{event.ts}</span> {event.kind}
               {typeof event.payload.source === "string" ? ` · ${event.payload.source}` : ""}
               {typeof event.payload.reason === "string" ? ` · ${event.payload.reason}` : ""}
+              {event.kind === "gate.auto" && typeof event.payload.action === "string"
+                ? ` · ${event.payload.action}`
+                : ""}
+              {event.kind === "gate.auto" && typeof event.payload.stage === "string"
+                ? ` · ${event.payload.stage}`
+                : ""}
             </li>
           ))
         )}

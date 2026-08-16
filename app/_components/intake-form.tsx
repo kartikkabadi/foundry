@@ -33,6 +33,29 @@ export function IntakeForm({
           required
         />
       </label>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm text-foreground">How Foundry should walk</legend>
+        <label className="flex cursor-pointer gap-3 rounded-md border border-border p-3">
+          <input className="mt-1" defaultChecked name="runMode" type="radio" value="hitl" />
+          <span>
+            <span className="block text-foreground">Human in the loop</span>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              Default. Workers stop at gates until you decide.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer gap-3 rounded-md border border-border p-3">
+          <input className="mt-1" name="runMode" type="radio" value="oneshot" />
+          <span>
+            <span className="block text-foreground">One shot</span>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              Goal / long-running. Foundry keeps walking after you submit. Grill Decision tickets
+              and other gates auto-resolve using worker recommendations. You can still open the
+              Issue, pause, or override. Merge to GitHub does not run until that path is real.
+            </span>
+          </span>
+        </label>
+      </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           <span className="text-foreground">How far to run</span>

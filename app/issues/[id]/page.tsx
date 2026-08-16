@@ -3,6 +3,7 @@ import { EventLog } from "@/app/issues/[id]/event-log";
 import { GrillPanel } from "@/app/issues/[id]/grill-panel";
 import { LateWalkPanel } from "@/app/issues/[id]/late-walk-panel";
 import { MidWalkPanel } from "@/app/issues/[id]/mid-walk-panel";
+import { OneshotControls } from "@/app/issues/[id]/oneshot-controls";
 import { PropertiesRail } from "@/app/issues/[id]/properties-rail";
 import { RefreshWhile } from "@/app/issues/[id]/refresh-while";
 import { ResearchPanel } from "@/app/issues/[id]/research-panel";
@@ -11,6 +12,7 @@ import { StageHero } from "@/app/issues/[id]/stage-hero";
 import { WalkStrip } from "@/app/issues/[id]/walk-strip";
 import { startGrill } from "@/lib/foundry/grill";
 import { readEvents } from "@/lib/foundry/log";
+import { startOneshotWalk } from "@/lib/foundry/oneshot";
 import { researchState, startResearch } from "@/lib/foundry/research";
 import { startSpec } from "@/lib/foundry/spec";
 import {
@@ -26,7 +28,7 @@ import {
   listModules,
   listProjects,
 } from "@/lib/foundry/store";
-import { artifactKindFor, type StageId } from "@/lib/foundry/types";
+import { artifactKindFor, isOneshotWalking, type StageId } from "@/lib/foundry/types";
 import { startWalkStage } from "@/lib/foundry/walk";
 import { notFound } from "next/navigation";
 
@@ -87,8 +89,9 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
   const loaded = getIssue(id);
   if (!loaded) notFound();
   const { issue, stages } = loaded;
+  if (isOneshotWalking(issue)) startOneshotWalk(id);
   const job = getJob(id, issue.currentStage);
-  const polling = boot(id, issue.currentStage);
+  const polling = boot(id, issue.currentStage) || isOneshotWalking(issue);
   const { brief } = researchState(id);
   const tickets = listDecisionTickets(id);
   const spec = getArtifact(id, "spec_doc");
@@ -110,13 +113,14 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
           job={job}
           unansweredTickets={tickets.filter((ticket) => !ticket.answer).length}
         />
+        <OneshotControls issue={issue} />
         <WalkStrip stages={stages} />
         {issue.currentStage === "research" ? (
           <ResearchPanel brief={brief} canAdvance issueId={id} job={job} />
         ) : null}
         {issue.currentStage === "grill" ? (
           <>
-            <GrillPanel held={held} issueId={id} job={job} tickets={tickets} />
+            <GrillPanel held={held} issueId={id} job={job} runMode={issue.runMode} tickets={tickets} />
             {brief ? (
               <details className="rounded-md border border-border p-4">
                 <summary className="cursor-pointer text-sm text-muted-foreground">Research brief</summary>

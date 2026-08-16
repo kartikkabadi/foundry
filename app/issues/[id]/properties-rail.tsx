@@ -33,6 +33,13 @@ export function PropertiesRail({
         <div className="mt-1">{issue.size}</div>
       </div>
       <div>
+        <div className="text-xs text-muted-foreground">Walk</div>
+        <div className="mt-1">
+          {issue.runMode === "oneshot" ? "One shot" : "Human in the loop"}
+          {issue.walkHold ? " · paused" : ""}
+        </div>
+      </div>
+      <div>
         <div className="text-xs text-muted-foreground">Job</div>
         <div className="mt-1">{job ? jobStatusLabel(job.status) : "Idle"}</div>
       </div>
