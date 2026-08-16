@@ -1,76 +1,90 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { Issue, IssueSize } from "@/lib/foundry/types";
+import { createIssueAction } from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import type { Cycle, IssueSize, Module, Project } from "@/lib/foundry/types";
 
 const SIZES: IssueSize[] = ["xs", "s", "m", "l", "forced_l"];
 
-export function IntakeForm() {
-  const router = useRouter();
-  const [idea, setIdea] = useState("");
-  const [targetUrl, setTargetUrl] = useState("https://github.com/kartikkabadi/foundry.git");
-  const [size, setSize] = useState<IssueSize>("forced_l");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+export function IntakeForm({
+  projects,
+  cycles,
+  modules,
+}: {
+  projects: Project[];
+  cycles: Cycle[];
+  modules: Module[];
+}) {
   return (
-    <form
-      className="flex max-w-2xl flex-col gap-3"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setBusy(true);
-        setError(null);
-        const response = await fetch("/api/issues", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idea, targetUrl, size }),
-        });
-        const body = (await response.json()) as { issue?: Issue; error?: string };
-        setBusy(false);
-        if (!response.ok || !body.issue) {
-          setError(body.error ?? "create failed");
-          return;
-        }
-        router.push(`/issues/${body.issue.id}`);
-      }}
-    >
-      <label className="flex flex-col gap-1 text-sm">
-        Idea
+    <form action={createIssueAction} className="flex flex-col gap-4">
+      <label className="flex flex-col gap-2 text-sm">
+        <span className="text-foreground">What do you want built?</span>
         <textarea
-          className="min-h-28 border border-neutral-700 bg-black p-2"
-          value={idea}
-          onChange={(event) => setIdea(event.target.value)}
+          className="min-h-28 rounded-md border border-input bg-background p-3 text-base text-foreground outline-none focus-visible:border-ring"
+          name="idea"
+          placeholder="Describe the change in plain language."
           required
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Target git URL
+      <label className="flex flex-col gap-2 text-sm">
+        <span className="text-foreground">Repo</span>
         <input
-          className="border border-neutral-700 bg-black p-2"
-          value={targetUrl}
-          onChange={(event) => setTargetUrl(event.target.value)}
+          className="rounded-md border border-input bg-background p-3 text-foreground outline-none focus-visible:border-ring"
+          defaultValue="https://github.com/kartikkabadi/foundry.git"
+          name="targetUrl"
           required
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Size
-        <select
-          className="border border-neutral-700 bg-black p-2"
-          value={size}
-          onChange={(event) => setSize(event.target.value as IssueSize)}
-        >
-          {SIZES.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      <button className="w-fit bg-neutral-100 px-3 py-2 text-sm text-black disabled:opacity-50" disabled={busy} type="submit">
-        Open Issue
-      </button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-foreground">How far to run</span>
+          <select
+            className="rounded-md border border-input bg-background p-3 text-foreground"
+            defaultValue="forced_l"
+            name="size"
+          >
+            {SIZES.map((value) => (
+              <option key={value} value={value}>
+                {value === "forced_l" ? "forced-L — every stage, no skips" : value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-foreground">Project</span>
+          <select className="rounded-md border border-input bg-background p-3 text-foreground" name="projectId">
+            <option value="">From repo URL</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-foreground">Cycle</span>
+          <select className="rounded-md border border-input bg-background p-3 text-foreground" name="cycleId">
+            <option value="">None</option>
+            {cycles.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>
+                {cycle.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-foreground">Module</span>
+          <select className="rounded-md border border-input bg-background p-3 text-foreground" name="moduleId">
+            <option value="">None</option>
+            {modules.map((mod) => (
+              <option key={mod.id} value={mod.id}>
+                {mod.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <Button className="w-fit" type="submit">
+        Open issue
+      </Button>
     </form>
   );
 }
