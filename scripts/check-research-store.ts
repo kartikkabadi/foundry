@@ -1,7 +1,7 @@
-process.env.FOUNDRY_DATA = "/tmp/foundry-research-store";
+import { createIssue, getArtifact, getIssue, saveArtifact } from "../lib/foundry/store.ts";
+import { parseResearchBrief } from "../lib/foundry/research.ts";
 
-const { createIssue, getArtifact, getIssue, saveArtifact } = await import("../lib/foundry/store.ts");
-const { parseResearchBrief } = await import("../lib/foundry/research.ts");
+process.env.FOUNDRY_DATA = "/tmp/foundry-research-store";
 
 const issue = createIssue({
   idea: "Clarify the Issue page",
