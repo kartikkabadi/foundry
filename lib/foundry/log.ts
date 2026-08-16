@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { logPath } from "./paths";
 
@@ -20,4 +20,16 @@ export function appendEvent(issueId: string, kind: string, payload: Record<strin
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(path, `${JSON.stringify(event)}\n`);
   return event;
+}
+
+export function readEvents(issueId: string): FoundryEvent[] {
+  try {
+    const raw = readFileSync(logPath(issueId), "utf8");
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as FoundryEvent);
+  } catch {
+    return [];
+  }
 }
