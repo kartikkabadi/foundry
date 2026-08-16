@@ -99,10 +99,14 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
     <main className="flex min-h-full">
       <RefreshWhile active={polling} />
       <div className="flex min-w-0 flex-1 flex-col gap-8 p-6">
-        <StageHero issue={issue} job={job} />
+        <StageHero
+          issue={issue}
+          job={job}
+          unansweredTickets={tickets.filter((ticket) => !ticket.answer).length}
+        />
         <WalkStrip stages={stages} />
         {issue.currentStage === "research" ? (
-          <ResearchPanel brief={brief} issueId={id} job={job} />
+          <ResearchPanel brief={brief} canAdvance issueId={id} job={job} />
         ) : null}
         {issue.currentStage === "grill" ? (
           <>
