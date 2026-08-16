@@ -15,7 +15,7 @@ npm run dev
 
 Open `http://vps.tailb387b4.ts.net:3100/` (or localhost:3100 on this VPS).
 
-Data lives in `data/` (gitignored). Opening an Issue runs research through the eve worker and writes a brief to disk. Docker sandboxes are not in this slice yet. Grill is the next gate and is not built yet.
+Data lives in `data/` (gitignored). Opening an Issue runs research through the eve worker and writes a brief to disk. Grill is the first hard stop: answer every Decision ticket in the dashboard. Docker sandboxes are not in this slice yet.
 
 ## v1 lock
 
