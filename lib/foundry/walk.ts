@@ -37,6 +37,10 @@ export function isWalkWorkerStage(stage: StageId): boolean {
   return WORKER_STAGES.includes(stage);
 }
 
+export function walkInflight(issueId: string): boolean {
+  return inflight.has(issueId);
+}
+
 export function startWalkStage(issueId: string): void {
   const key = issueId;
   if (inflight.has(key)) return;

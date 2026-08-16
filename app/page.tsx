@@ -35,7 +35,7 @@ export default async function Page({
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-medium tracking-tight">Issues</h1>
             <p className="text-sm text-muted-foreground">
-              An idea becomes an Issue. The Issue walks the factory. You stop it at the gates.
+              An idea becomes an Issue. Default: you stop it at the gates. One shot keeps walking.
             </p>
           </div>
           <div className="flex gap-2 text-xs">
@@ -73,7 +73,7 @@ export default async function Page({
                     </td>
                     <td className="py-2 text-muted-foreground">{issue.currentStage}</td>
                     <td className="py-2 text-muted-foreground">{issue.size}</td>
-                    <td className="py-2 text-muted-foreground">{issueListStatus(issue.currentStage, job)}</td>
+                    <td className="py-2 text-muted-foreground">{issueListStatus(issue, job)}</td>
                   </tr>
                 );
               })}
@@ -96,7 +96,7 @@ export default async function Page({
                       href={`/issues/${issue.id}`}
                     >
                       <div className="text-xs text-muted-foreground">
-                        {issueListStatus(issue.currentStage, job)}
+                        {issueListStatus(issue, job)}
                       </div>
                       <div className="mt-1">{issue.idea}</div>
                     </Link>

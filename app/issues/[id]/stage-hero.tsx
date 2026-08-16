@@ -20,6 +20,7 @@ export function StageHero({
       <p className="text-xs uppercase tracking-wide text-muted-foreground">Current stage</p>
       <p className="text-sm text-muted-foreground">
         {STAGE_LABEL[issue.currentStage]}
+        {issue.runMode === "oneshot" ? " · One shot" : " · Human in the loop"}
         {gate ? ` · ${gate} gate` : null}
         {running ? ` · ${jobVerb(issue.currentStage)}` : null}
         {failed ? " · failed" : null}
@@ -27,7 +28,12 @@ export function StageHero({
       </p>
       <h1 className="text-2xl font-medium tracking-tight">{issue.idea}</h1>
       <p className="max-w-2xl text-sm text-foreground">
-        {nowWhat(issue.currentStage, job, { unansweredTickets })}
+        {nowWhat(issue.currentStage, job, {
+          unansweredTickets,
+          runMode: issue.runMode,
+          walkHold: issue.walkHold,
+          oneshotStopReason: issue.oneshotStopReason,
+        })}
       </p>
     </header>
   );

@@ -18,9 +18,12 @@ import {
   type Module,
   type NavCounts,
   type Project,
+  type RunMode,
   type StageId,
   type StageStatus,
   gateFor,
+  isOneshotWalking,
+  parseRunMode,
 } from "./types";
 
 let db: DatabaseSync | null = null;
@@ -94,6 +97,9 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issues", "cycle_id", "TEXT");
   ensureColumn(conn, "issues", "module_id", "TEXT");
   ensureColumn(conn, "issues", "grill_hold", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(conn, "issues", "run_mode", "TEXT NOT NULL DEFAULT 'hitl'");
+  ensureColumn(conn, "issues", "walk_hold", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(conn, "issues", "oneshot_stop_reason", "TEXT");
   ensureColumn(conn, "issue_jobs", "heartbeat_at", "TEXT");
 }
 
@@ -138,6 +144,9 @@ function mapIssue(row: Record<string, unknown>): Issue {
     targetUrl: String(row.target_url),
     size: row.size as IssueSize,
     currentStage: row.current_stage as StageId,
+    runMode: parseRunMode(row.run_mode ? String(row.run_mode) : "hitl"),
+    walkHold: Boolean(row.walk_hold),
+    oneshotStopReason: row.oneshot_stop_reason ? String(row.oneshot_stop_reason) : null,
     projectId: row.project_id ? String(row.project_id) : null,
     cycleId: row.cycle_id ? String(row.cycle_id) : null,
     moduleId: row.module_id ? String(row.module_id) : null,
@@ -337,7 +346,11 @@ export function listIssuesByModule(moduleId: string): Issue[] {
 }
 
 export function listGateIssues(): Issue[] {
-  return listIssues().filter((issue) => gateFor(issue.currentStage) !== null);
+  return listIssues().filter((issue) => {
+    if (gateFor(issue.currentStage) === null) return false;
+    if (isOneshotWalking(issue)) return false;
+    return true;
+  });
 }
 
 export function getIssue(id: string): { issue: Issue; stages: IssueStage[] } | null {
@@ -353,12 +366,14 @@ export function createIssue(input: {
   idea: string;
   targetUrl: string;
   size: IssueSize;
+  runMode?: RunMode;
   projectId?: string | null;
   cycleId?: string | null;
   moduleId?: string | null;
 }): Issue {
   const id = randomUUID();
   const now = new Date().toISOString();
+  const runMode = parseRunMode(input.runMode);
   const skips = skippedStages(input.size);
   const first = STAGES.find((stage) => stage !== "intake" && !(stage in skips)) ?? "research";
   const project = input.projectId
@@ -370,7 +385,7 @@ export function createIssue(input: {
   try {
     conn
       .prepare(
-        "INSERT INTO issues (id, idea, target_url, size, current_stage, created_at, updated_at, project_id, cycle_id, module_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO issues (id, idea, target_url, size, current_stage, created_at, updated_at, project_id, cycle_id, module_id, run_mode, walk_hold, oneshot_stop_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)",
       )
       .run(
         id,
@@ -383,6 +398,7 @@ export function createIssue(input: {
         projectId,
         input.cycleId ?? null,
         input.moduleId ?? null,
+        runMode,
       );
     for (const stage of STAGES) {
       const skipReason = skips[stage] ?? null;
@@ -404,6 +420,7 @@ export function createIssue(input: {
     targetUrl: input.targetUrl,
     currentStage: first,
     projectId,
+    runMode,
   });
   const created = getIssue(id);
   if (!created) throw new Error("issue missing after insert");
@@ -649,6 +666,45 @@ export function setGrillHold(issueId: string, held: boolean): void {
     {},
     { source: "operator", reason: held ? "hold" : undefined },
   );
+}
+
+export function isWalkHeld(issueId: string): boolean {
+  const loaded = getIssue(issueId);
+  return Boolean(loaded?.issue.walkHold);
+}
+
+export function setWalkHold(issueId: string, held: boolean): void {
+  const loaded = getIssue(issueId);
+  if (!loaded) throw new Error("unknown issue");
+  const now = new Date().toISOString();
+  database()
+    .prepare("UPDATE issues SET walk_hold = ?, updated_at = ? WHERE id = ?")
+    .run(held ? 1 : 0, now, issueId);
+  appendEvent(
+    issueId,
+    held ? "oneshot.paused" : "oneshot.resumed",
+    {},
+    { source: "operator", reason: held ? "pause" : "resume" },
+  );
+}
+
+export function setOneshotStopReason(issueId: string, reason: string | null): void {
+  const now = new Date().toISOString();
+  database()
+    .prepare("UPDATE issues SET oneshot_stop_reason = ?, updated_at = ? WHERE id = ?")
+    .run(reason, now, issueId);
+}
+
+export function cancelOneshot(issueId: string): void {
+  const loaded = getIssue(issueId);
+  if (!loaded) throw new Error("unknown issue");
+  const now = new Date().toISOString();
+  database()
+    .prepare(
+      "UPDATE issues SET run_mode = ?, walk_hold = 0, oneshot_stop_reason = NULL, updated_at = ? WHERE id = ?",
+    )
+    .run("hitl", now, issueId);
+  appendEvent(issueId, "oneshot.cancelled", {}, { source: "operator", reason: "cancel" });
 }
 
 export function clearTicketAnswer(id: string): DecisionTicket {

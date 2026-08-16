@@ -3,11 +3,13 @@
 import { redirect } from "next/navigation";
 import { saveGrillSummary, startGrill } from "@/lib/foundry/grill";
 import { appendEvent } from "@/lib/foundry/log";
+import { startOneshotWalk } from "@/lib/foundry/oneshot";
 import { startResearch } from "@/lib/foundry/research";
 import { startSpec } from "@/lib/foundry/spec";
 import {
   answerDecisionTicket,
   assignIssue,
+  cancelOneshot,
   clearJob,
   clearTicketAnswer,
   completeActiveStage,
@@ -19,10 +21,12 @@ import {
   getProject,
   isGrillHeld,
   setGrillHold,
+  setOneshotStopReason,
+  setWalkHold,
   unansweredTicketCount,
 } from "@/lib/foundry/store";
 import { startWalkStage } from "@/lib/foundry/walk";
-import { type IssueSize, type StageId } from "@/lib/foundry/types";
+import { parseRunMode, type Issue, type IssueSize, type StageId } from "@/lib/foundry/types";
 
 const SIZES: IssueSize[] = ["xs", "s", "m", "l", "forced_l"];
 
@@ -32,11 +36,17 @@ function requireIssue(id: string) {
   return loaded;
 }
 
+function kickOneshot(issue: Issue): void {
+  if (issue.runMode !== "oneshot" || issue.walkHold) return;
+  startOneshotWalk(issue.id);
+}
+
 export async function createIssueAction(formData: FormData) {
   const idea = String(formData.get("idea") ?? "").trim();
   const targetUrl = String(formData.get("targetUrl") ?? "").trim();
   const sizeRaw = String(formData.get("size") ?? "s");
   const size = SIZES.includes(sizeRaw as IssueSize) ? (sizeRaw as IssueSize) : "s";
+  const runMode = parseRunMode(String(formData.get("runMode") ?? "hitl"));
   const projectId = String(formData.get("projectId") ?? "").trim() || null;
   const cycleId = String(formData.get("cycleId") ?? "").trim() || null;
   const moduleId = String(formData.get("moduleId") ?? "").trim() || null;
@@ -47,19 +57,23 @@ export async function createIssueAction(formData: FormData) {
     idea,
     targetUrl,
     size,
+    runMode,
     projectId,
     cycleId,
     moduleId,
   });
   startResearch(issue.id);
+  kickOneshot(issue);
   redirect(`/issues/${issue.id}`);
 }
 
 export async function retryResearchAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
-  requireIssue(id);
+  const loaded = requireIssue(id);
   clearJob(id, "research");
+  setOneshotStopReason(id, null);
   startResearch(id);
+  kickOneshot(loaded.issue);
   redirect(`/issues/${id}`);
 }
 
@@ -96,6 +110,8 @@ export async function retryStageAction(formData: FormData) {
       return _exhaustive;
     }
   }
+  setOneshotStopReason(id, null);
+  kickOneshot(loaded.issue);
   redirect(`/issues/${id}`);
 }
 
@@ -170,6 +186,32 @@ export async function reopenTicketAction(formData: FormData) {
   clearJob(issueId, "grill");
   clearTicketAnswer(ticketId);
   redirect(`/issues/${issueId}`);
+}
+
+export async function pauseOneshotAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const loaded = requireIssue(id);
+  if (loaded.issue.runMode !== "oneshot") throw new Error("Pause is only for One shot Issues");
+  setWalkHold(id, true);
+  redirect(`/issues/${id}`);
+}
+
+export async function resumeOneshotAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const loaded = requireIssue(id);
+  if (loaded.issue.runMode !== "oneshot") throw new Error("Resume is only for One shot Issues");
+  setOneshotStopReason(id, null);
+  setWalkHold(id, false);
+  startOneshotWalk(id);
+  redirect(`/issues/${id}`);
+}
+
+export async function cancelOneshotAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const loaded = requireIssue(id);
+  if (loaded.issue.runMode !== "oneshot") throw new Error("Cancel One shot is only for One shot Issues");
+  cancelOneshot(id);
+  redirect(`/issues/${id}`);
 }
 
 export async function createProjectAction(formData: FormData) {
