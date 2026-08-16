@@ -25,7 +25,13 @@ export default function CyclesPage() {
         </Button>
       </form>
       <ul className="flex flex-col gap-2">
-        {cycles.map((cycle) => {
+        {cycles.length === 0 ? (
+          <li className="rounded-md border border-border p-4 text-muted-foreground">
+            No cycles yet. Open a window if you want Issues grouped by time. The factory still runs
+            without one.
+          </li>
+        ) : (
+          cycles.map((cycle) => {
           const issues = listIssuesByCycle(cycle.id);
           return (
             <li className="rounded-md border border-border p-4" key={cycle.id}>
@@ -34,15 +40,20 @@ export default function CyclesPage() {
                 {cycle.status} · {cycle.startsAt} → {cycle.endsAt}
               </div>
               <ul className="mt-2 flex flex-col gap-1 text-sm">
-                {issues.map((issue) => (
-                  <li key={issue.id}>
-                    <Link href={`/issues/${issue.id}`}>{issue.idea}</Link>
-                  </li>
-                ))}
+                {issues.length === 0 ? (
+                  <li className="text-muted-foreground">No issues in this cycle.</li>
+                ) : (
+                  issues.map((issue) => (
+                    <li key={issue.id}>
+                      <Link href={`/issues/${issue.id}`}>{issue.idea}</Link>
+                    </li>
+                  ))
+                )}
               </ul>
             </li>
           );
-        })}
+        })
+        )}
       </ul>
     </main>
   );
