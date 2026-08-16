@@ -32,7 +32,12 @@ export default function ProjectsPage() {
         </Button>
       </form>
       <ul className="flex flex-col gap-2">
-        {projects.map((project) => {
+        {projects.length === 0 ? (
+          <li className="rounded-md border border-border p-4 text-muted-foreground">
+            No projects yet. Add one, or open an Issue — Foundry creates a project from the repo URL.
+          </li>
+        ) : (
+          projects.map((project) => {
           const issues = listIssuesByProject(project.id);
           return (
             <li className="rounded-md border border-border p-4" key={project.id}>
@@ -40,15 +45,20 @@ export default function ProjectsPage() {
               <div className="mt-1 font-mono text-xs text-muted-foreground">{project.targetUrl}</div>
               <div className="mt-2 text-sm text-muted-foreground">{issues.length} issues</div>
               <ul className="mt-2 flex flex-col gap-1 text-sm">
-                {issues.map((issue) => (
-                  <li key={issue.id}>
-                    <Link href={`/issues/${issue.id}`}>{issue.idea}</Link>
-                  </li>
-                ))}
+                {issues.length === 0 ? (
+                  <li className="text-muted-foreground">No issues assigned.</li>
+                ) : (
+                  issues.map((issue) => (
+                    <li key={issue.id}>
+                      <Link href={`/issues/${issue.id}`}>{issue.idea}</Link>
+                    </li>
+                  ))
+                )}
               </ul>
             </li>
           );
-        })}
+        })
+        )}
       </ul>
     </main>
   );
