@@ -23,6 +23,7 @@ export function CommandMenu({ issues }: { issues: PaletteIssue[] }) {
         event.preventDefault();
         setOpen((value) => !value);
       }
+      if (event.key === "Escape") setOpen(false);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -43,8 +44,20 @@ export function CommandMenu({ issues }: { issues: PaletteIssue[] }) {
         Search ⌘K
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24">
-          <div className="w-full max-w-lg rounded-md border border-border bg-background shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24"
+          onClick={() => setOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-lg rounded-md border border-border bg-background shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            role="presentation"
+          >
             <Command>
               <CommandInput placeholder="Go to an Issue, Gate, Project…" />
               <CommandList>
@@ -58,11 +71,15 @@ export function CommandMenu({ issues }: { issues: PaletteIssue[] }) {
                   <CommandItem onSelect={() => go("/workers")}>Workers</CommandItem>
                 </CommandGroup>
                 <CommandGroup heading="Issues">
-                  {issues.slice(0, 20).map((issue) => (
-                    <CommandItem key={issue.id} onSelect={() => go(`/issues/${issue.id}`)}>
-                      {issue.idea}
-                    </CommandItem>
-                  ))}
+                  {issues.length === 0 ? (
+                    <CommandItem disabled>No issues yet</CommandItem>
+                  ) : (
+                    issues.slice(0, 20).map((issue) => (
+                      <CommandItem key={issue.id} onSelect={() => go(`/issues/${issue.id}`)}>
+                        {issue.idea}
+                      </CommandItem>
+                    ))
+                  )}
                 </CommandGroup>
               </CommandList>
             </Command>
