@@ -11,6 +11,8 @@ export function EventLog({ events }: { events: FoundryEvent[] }) {
           events.map((event, index) => (
             <li key={`${event.ts}-${index}`}>
               <span className="text-muted-foreground">{event.ts}</span> {event.kind}
+              {typeof event.payload.source === "string" ? ` · ${event.payload.source}` : ""}
+              {typeof event.payload.reason === "string" ? ` · ${event.payload.reason}` : ""}
             </li>
           ))
         )}

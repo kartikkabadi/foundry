@@ -57,6 +57,7 @@ export async function runSpec(issueId: string): Promise<void> {
         parsed ? `Research: ${JSON.stringify(parsed)}` : "",
         answers ? `Grill answers:\n${answers}` : "",
       ].join("\n"),
+      300_000,
     );
     saveArtifact({
       issueId,

@@ -1,13 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { startGrill } from "@/lib/foundry/grill";
+import { saveGrillSummary, startGrill } from "@/lib/foundry/grill";
+import { appendEvent } from "@/lib/foundry/log";
 import { startResearch } from "@/lib/foundry/research";
 import { startSpec } from "@/lib/foundry/spec";
 import {
   answerDecisionTicket,
   assignIssue,
   clearJob,
+  clearTicketAnswer,
   completeActiveStage,
   createCycle,
   createIssue,
@@ -15,6 +17,8 @@ import {
   createProject,
   getIssue,
   getProject,
+  isGrillHeld,
+  setGrillHold,
   unansweredTicketCount,
 } from "@/lib/foundry/store";
 import { startWalkStage } from "@/lib/foundry/walk";
@@ -64,6 +68,7 @@ export async function retryStageAction(formData: FormData) {
   const loaded = requireIssue(id);
   const stage = loaded.issue.currentStage;
   clearJob(id, stage);
+  appendEvent(id, `${stage}.retry`, {}, { source: "operator", reason: "re-run" });
   switch (stage) {
     case "research":
       startResearch(id);
@@ -97,10 +102,18 @@ export async function retryStageAction(formData: FormData) {
 export async function completeStageAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const loaded = requireIssue(id);
-  if (loaded.issue.currentStage === "grill" && unansweredTicketCount(id) > 0) {
-    throw new Error("Answer every Decision ticket first");
+  const stage = loaded.issue.currentStage;
+  if (stage === "grill" && String(formData.get("confirm") ?? "") !== "1") {
+    throw new Error("Confirm Finish grill now");
   }
-  completeActiveStage(id);
+  if (stage === "grill") {
+    saveGrillSummary(id);
+    clearJob(id, "grill");
+    completeActiveStage(id, { source: "operator", reason: "force-finish" });
+    startSpec(id);
+  } else {
+    completeActiveStage(id, { source: "operator", reason: "manual-complete" });
+  }
   redirect(`/issues/${id}`);
 }
 
@@ -111,6 +124,9 @@ export async function answerTicketAction(formData: FormData) {
   requireIssue(issueId);
   if (!ticketId || !answer) throw new Error("answer is required");
   answerDecisionTicket(ticketId, answer);
+  if (unansweredTicketCount(issueId) === 0 && !isGrillHeld(issueId)) {
+    startGrill(issueId);
+  }
   redirect(`/issues/${issueId}`);
 }
 
@@ -120,8 +136,40 @@ export async function anotherGrillRoundAction(formData: FormData) {
   if (unansweredTicketCount(id) > 0) {
     throw new Error("Answer every Decision ticket first");
   }
+  appendEvent(id, "grill.manual_advance", {}, { source: "operator", reason: "manual-advance" });
   startGrill(id);
   redirect(`/issues/${id}`);
+}
+
+export async function holdGrillAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const loaded = requireIssue(id);
+  if (loaded.issue.currentStage !== "grill") throw new Error("Hold is only available during grill");
+  clearJob(id, "grill");
+  setGrillHold(id, true);
+  redirect(`/issues/${id}`);
+}
+
+export async function releaseGrillAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  const loaded = requireIssue(id);
+  if (loaded.issue.currentStage !== "grill") throw new Error("Release hold is only available during grill");
+  setGrillHold(id, false);
+  if (unansweredTicketCount(id) === 0) startGrill(id);
+  redirect(`/issues/${id}`);
+}
+
+export async function reopenTicketAction(formData: FormData) {
+  const issueId = String(formData.get("issueId") ?? "").trim();
+  const ticketId = String(formData.get("ticketId") ?? "").trim();
+  const loaded = requireIssue(issueId);
+  if (loaded.issue.currentStage !== "grill") {
+    throw new Error("Reopen is only available during grill");
+  }
+  if (!ticketId) throw new Error("ticket is required");
+  clearJob(issueId, "grill");
+  clearTicketAnswer(ticketId);
+  redirect(`/issues/${issueId}`);
 }
 
 export async function createProjectAction(formData: FormData) {
