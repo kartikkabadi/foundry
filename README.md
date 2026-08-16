@@ -13,9 +13,9 @@ sfw npm install
 npm run dev
 ```
 
-Open the printed localhost URL (or the Tailscale hostname on port 3000).
+Open `http://vps.tailb387b4.ts.net:3100/` (or localhost:3100 on this VPS).
 
-Data lives in `data/` (gitignored). Docker sandboxes are not in this first slice yet.
+Data lives in `data/` (gitignored). Opening an Issue runs research through the eve worker and writes a brief to disk. Docker sandboxes are not in this slice yet. Grill is the next gate and is not built yet.
 
 ## v1 lock
 
