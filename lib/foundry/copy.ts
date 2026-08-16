@@ -87,7 +87,7 @@ export function nowWhat(
           ? "Answer the remaining Decision ticket. Grill does not move until you do."
           : `Answer ${remaining} remaining Decision tickets. Grill does not move until you do.`;
       }
-      return "Every ticket in this round is answered. Finish grill, or ask for another round.";
+      return "Every ticket in this round is answered. The next round starts on its own, or finish grill now.";
     }
     case "spec":
       return "Read the spec. Continue when it is the plan you actually want.";

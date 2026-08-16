@@ -20,6 +20,7 @@ import {
   getJob,
   getModule,
   getProject,
+  isGrillHeld,
   listCycles,
   listDecisionTickets,
   listModules,
@@ -43,9 +44,12 @@ function boot(issueId: string, stage: StageId): boolean {
     case "grill": {
       const tickets = listDecisionTickets(issueId);
       const job = getJob(issueId, "grill");
-      const shouldRun = tickets.length === 0 && job?.status !== "failed" && job?.status !== "stale";
+      const unanswered = tickets.filter((ticket) => !ticket.answer).length;
+      const held = isGrillHeld(issueId);
+      const shouldRun =
+        unanswered === 0 && !held && job?.status !== "failed" && job?.status !== "stale";
       if (shouldRun) startGrill(issueId);
-      return Boolean(job?.status === "running" || shouldRun);
+      return true;
     }
     case "spec": {
       const artifact = getArtifact(issueId, "spec_doc");
@@ -88,6 +92,8 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
   const { brief } = researchState(id);
   const tickets = listDecisionTickets(id);
   const spec = getArtifact(id, "spec_doc");
+  const grillSummary = getArtifact(id, "grill_summary");
+  const held = isGrillHeld(id);
   const walkKind = artifactKindFor(issue.currentStage);
   const walkArtifact = walkKind ? getArtifact(id, walkKind) : null;
   const events = readEvents(id);
@@ -110,7 +116,7 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
         ) : null}
         {issue.currentStage === "grill" ? (
           <>
-            <GrillPanel issueId={id} job={job} tickets={tickets} />
+            <GrillPanel held={held} issueId={id} job={job} tickets={tickets} />
             {brief ? (
               <details className="rounded-md border border-border p-4">
                 <summary className="cursor-pointer text-sm text-muted-foreground">Research brief</summary>
@@ -121,7 +127,9 @@ export default async function IssuePage({ params }: { params: Promise<{ id: stri
             ) : null}
           </>
         ) : null}
-        {issue.currentStage === "spec" ? <SpecPanel artifact={spec} issueId={id} job={job} /> : null}
+        {issue.currentStage === "spec" ? (
+          <SpecPanel artifact={spec} issueId={id} job={job} summary={grillSummary} />
+        ) : null}
         {issue.currentStage === "improve" ||
         issue.currentStage === "plan_pack" ||
         issue.currentStage === "council" ||
