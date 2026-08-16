@@ -1,4 +1,6 @@
+import { completeStageAction } from "@/app/actions";
 import { RetryResearch } from "@/app/issues/[id]/retry-research";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { IssueJob, ResearchBrief } from "@/lib/foundry/types";
 
@@ -6,10 +8,12 @@ export function ResearchPanel({
   brief,
   job,
   issueId,
+  canAdvance = false,
 }: {
   brief: ResearchBrief | null;
   job: IssueJob | null;
   issueId: string;
+  canAdvance?: boolean;
 }) {
   if (job?.status === "running" && !brief) {
     return (
@@ -37,7 +41,12 @@ export function ResearchPanel({
     );
   }
   if (!brief) {
-    return <p className="text-muted-foreground">No brief yet.</p>;
+    return (
+      <p className="text-muted-foreground">
+        No brief yet. Research has not written one. If this sits still, retry from this page or
+        Workers.
+      </p>
+    );
   }
   return (
     <div className="flex flex-col gap-8">
@@ -47,6 +56,12 @@ export function ResearchPanel({
       <BriefList title="Constraints already in the repo" items={brief.constraints} />
       <BriefList title="Risks" items={brief.risks} />
       <BriefList title="Questions you will need to answer" items={brief.questionsForYou} />
+      {canAdvance ? (
+        <form action={completeStageAction}>
+          <input name="id" type="hidden" value={issueId} />
+          <Button type="submit">Continue to grill</Button>
+        </form>
+      ) : null}
     </div>
   );
 }
