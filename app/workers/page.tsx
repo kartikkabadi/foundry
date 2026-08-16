@@ -19,7 +19,10 @@ export default function WorkersPage() {
       </header>
       <ul className="flex flex-col gap-2">
         {jobs.length === 0 ? (
-          <li className="text-muted-foreground">No jobs on disk.</li>
+          <li className="rounded-md border border-border p-4 text-muted-foreground">
+            No workers have run yet. Opening an Issue starts research. Failed and stalled jobs stay
+            here until you clear them.
+          </li>
         ) : (
           jobs.map((job) => {
             const loaded = getIssue(job.issueId);
