@@ -1,0 +1,22 @@
+import { STAGE_LABEL, jobVerb } from "@/lib/foundry/copy";
+import type { Issue, IssueJob } from "@/lib/foundry/types";
+import { gateFor } from "@/lib/foundry/types";
+
+export function StageHero({ issue, job }: { issue: Issue; job: IssueJob | null }) {
+  const gate = gateFor(issue.currentStage);
+  const running = job?.status === "running";
+  const failed = job?.status === "failed";
+  const stale = job?.status === "stale";
+  return (
+    <header className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        {STAGE_LABEL[issue.currentStage]}
+        {gate ? ` · ${gate} gate` : null}
+        {running ? ` · ${jobVerb(issue.currentStage)}` : null}
+        {failed ? " · failed" : null}
+        {stale ? " · stalled" : null}
+      </p>
+      <h1 className="text-2xl font-medium tracking-tight">{issue.idea}</h1>
+    </header>
+  );
+}
