@@ -49,6 +49,11 @@ export default async function Page({
         </header>
         <IntakeForm cycles={cycles} modules={modules} projects={projects} />
         {spreadsheet ? (
+          issues.length === 0 ? (
+            <p className="text-muted-foreground">
+              No issues yet. Open one above — research starts as soon as you submit.
+            </p>
+          ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-muted-foreground">
               <tr>
@@ -74,10 +79,13 @@ export default async function Page({
               })}
             </tbody>
           </table>
+          )
         ) : (
           <ul className="flex flex-col gap-2">
             {issues.length === 0 ? (
-              <li className="text-muted-foreground">None yet.</li>
+              <li className="rounded-md border border-border p-4 text-muted-foreground">
+                No issues yet. Open one above — research starts as soon as you submit.
+              </li>
             ) : (
               issues.map((issue) => {
                 const job = getJob(issue.id, issue.currentStage);
@@ -104,7 +112,9 @@ export default async function Page({
           <h2 className="text-sm text-muted-foreground">Waiting on you</h2>
           <ul className="mt-3 flex flex-col gap-2 text-sm">
             {gates.length === 0 ? (
-              <li className="text-muted-foreground">No open gates.</li>
+              <li className="text-muted-foreground">
+                No open gates. Grill, plan pack, build, and evidence land here.
+              </li>
             ) : (
               gates.map((issue) => (
                 <li key={issue.id}>
@@ -118,7 +128,7 @@ export default async function Page({
           <h2 className="text-sm text-muted-foreground">Stalled workers</h2>
           <ul className="mt-3 flex flex-col gap-2 text-sm">
             {stalled.length === 0 ? (
-              <li className="text-muted-foreground">None.</li>
+              <li className="text-muted-foreground">No failed or stalled workers.</li>
             ) : (
               stalled.map((job) => (
                 <li key={`${job.issueId}-${job.stage}`}>
