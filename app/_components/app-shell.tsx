@@ -1,7 +1,7 @@
 import { CommandMenu } from "@/app/_components/command-menu";
 import { Sidebar } from "@/app/_components/sidebar";
 import type { NavCounts } from "@/lib/foundry/types";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 export function AppShell({
   children,
@@ -14,7 +14,9 @@ export function AppShell({
 }) {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <Sidebar counts={counts} />
+      <Suspense fallback={<aside className="w-56 shrink-0 border-r border-border bg-background" />}>
+        <Sidebar counts={counts} />
+      </Suspense>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-11 items-center justify-between border-b border-border px-4">
           <p className="text-sm text-muted-foreground">Human-in-the-loop software factory</p>
