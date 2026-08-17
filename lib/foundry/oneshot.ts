@@ -3,6 +3,7 @@ import { appendEvent } from "./log";
 import { researchInflight, startResearch } from "./research";
 import { specInflight, startSpec } from "./spec";
 import { startWalkStage, walkInflight } from "./walk";
+import { startExecute, executeInflight } from "./execute";
 import {
   answerDecisionTicket,
   completeActiveStage,
@@ -125,10 +126,11 @@ function tickStage(issue: Issue): OneshotTick {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "hygiene":
       return tickDocumentStage(issue.id, stage);
+    case "execute":
+      return tickExecuteStage(issue.id);
     case "merge":
       return stopOneshot(issue.id, ONESHOT_MERGE_STOP, "merge-not-real");
     default: {
@@ -197,6 +199,22 @@ function tickDocumentStage(issueId: string, stage: StageId): OneshotTick {
   return { action: "start_worker", stage };
 }
 
+function tickExecuteStage(issueId: string): OneshotTick {
+  const failed = jobFailure(issueId, "execute");
+  if (failed) return failed;
+  const running =
+    getJob(issueId, "execute")?.status === "running" || executeInflight(issueId);
+  if (running) {
+    return { action: "wait_job", stage: "execute" };
+  }
+  const kind = artifactKindFor("execute");
+  if (kind && getArtifact(issueId, kind)) {
+    return autoAdvance(issueId, "execute", kind);
+  }
+  startStageWorker(issueId, "execute");
+  return { action: "start_worker", stage: "execute" };
+}
+
 function autoAdvance(issueId: string, stage: StageId, kind: string): OneshotTick {
   appendEvent(
     issueId,
@@ -240,10 +258,12 @@ function startStageWorker(issueId: string, stage: StageId): void {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "hygiene":
       startWalkStage(issueId);
+      return;
+    case "execute":
+      startExecute(issueId);
       return;
     case "intake":
     case "merge":

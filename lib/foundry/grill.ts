@@ -27,6 +27,7 @@ export const GRILL_INFLIGHT = (globalThis as typeof globalThis & {
 export const GRILL_EMPTY_NOT_DONE =
   "Grill returned no tickets and did not set done. Re-run this round.";
 
+export const GRILL_TIMEOUT_MS = 300_000;
 export const GRILL_SUMMARY_KIND = ARTIFACT_KIND.grillSummary;
 
 const grillSchema = z.object({
@@ -100,6 +101,7 @@ export async function runGrill(issueId: string): Promise<void> {
         parsed ? `Brief: ${JSON.stringify(parsed)}` : "No research brief.",
         answered ? `Answered:\n${answered}` : "No answers yet. First round.",
       ].join("\n"),
+      GRILL_TIMEOUT_MS,
     );
     const outcome = grillRoundOutcome(result.done, result.tickets.length);
     switch (outcome) {

@@ -47,6 +47,15 @@ export const ARTIFACT_KIND = {
 
 export type ArtifactKind = (typeof ARTIFACT_KIND)[keyof typeof ARTIFACT_KIND];
 
+export type ExecuteResult = {
+  prUrl: string;
+  branchName: string;
+  commitMessage: string;
+  diff: string;
+  testResults: string;
+  filesChanged: string[];
+};
+
 export type Project = {
   id: string;
   name: string;
