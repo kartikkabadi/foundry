@@ -25,6 +25,7 @@ import {
   setWalkHold,
   unansweredTicketCount,
 } from "@/lib/foundry/store";
+import { startExecute } from "@/lib/foundry/execute";
 import { startWalkStage } from "@/lib/foundry/walk";
 import { parseRunMode, type Issue, type IssueSize, type StageId } from "@/lib/foundry/types";
 
@@ -97,11 +98,13 @@ export async function retryStageAction(formData: FormData) {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "merge":
     case "hygiene":
       startWalkStage(id);
+      break;
+    case "execute":
+      startExecute(id);
       break;
     case "intake":
       break;
@@ -254,5 +257,34 @@ export async function retryStageFromWorkersAction(formData: FormData) {
   const stage = String(formData.get("stage") ?? "").trim() as StageId;
   requireIssue(id);
   clearJob(id, stage);
+  switch (stage) {
+    case "research":
+      startResearch(id);
+      break;
+    case "grill":
+      startGrill(id);
+      break;
+    case "spec":
+      startSpec(id);
+      break;
+    case "improve":
+    case "plan_pack":
+    case "council":
+    case "architecture":
+    case "evidence":
+    case "merge":
+    case "hygiene":
+      startWalkStage(id);
+      break;
+    case "execute":
+      startExecute(id);
+      break;
+    case "intake":
+      break;
+    default: {
+      const _exhaustive: never = stage;
+      return _exhaustive;
+    }
+  }
   redirect("/workers");
 }

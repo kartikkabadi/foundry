@@ -10,6 +10,7 @@ import { ResearchPanel } from "@/app/issues/[id]/research-panel";
 import { SpecPanel } from "@/app/issues/[id]/spec-panel";
 import { StageHero } from "@/app/issues/[id]/stage-hero";
 import { WalkStrip } from "@/app/issues/[id]/walk-strip";
+import { executeInflight, startExecute } from "@/lib/foundry/execute";
 import { startGrill } from "@/lib/foundry/grill";
 import { readEvents } from "@/lib/foundry/log";
 import { startOneshotWalk } from "@/lib/foundry/oneshot";
@@ -64,7 +65,6 @@ function boot(issueId: string, stage: StageId): boolean {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "merge":
     case "hygiene": {
@@ -74,6 +74,13 @@ function boot(issueId: string, stage: StageId): boolean {
       const shouldRun = !artifact && job?.status !== "failed" && job?.status !== "stale";
       if (shouldRun) startWalkStage(issueId);
       return Boolean(!artifact && (job?.status === "running" || shouldRun));
+    }
+    case "execute": {
+      const artifact = getArtifact(issueId, "execute");
+      const job = getJob(issueId, "execute");
+      const shouldRun = !artifact && job?.status !== "failed" && job?.status !== "stale";
+      if (shouldRun) startExecute(issueId);
+      return Boolean(!artifact && (job?.status === "running" || shouldRun || executeInflight(issueId)));
     }
     case "intake":
       return false;

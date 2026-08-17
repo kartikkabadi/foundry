@@ -2,7 +2,26 @@ import { retryStageFromWorkersAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { jobStatusLabel, STAGE_LABEL } from "@/lib/foundry/copy";
 import { getIssue, listJobs } from "@/lib/foundry/store";
+import type { StageId } from "@/lib/foundry/types";
 import Link from "next/link";
+
+const RETRYABLE_STAGES: StageId[] = [
+  "research",
+  "grill",
+  "spec",
+  "improve",
+  "plan_pack",
+  "council",
+  "architecture",
+  "execute",
+  "evidence",
+  "merge",
+  "hygiene",
+];
+
+function isRetryableStage(stage: StageId): boolean {
+  return RETRYABLE_STAGES.includes(stage);
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +56,7 @@ export default function WorkersPage() {
                   </Link>
                   {job.error ? <p className="mt-2 text-sm text-muted-foreground">{job.error}</p> : null}
                 </div>
-                {job.status !== "running" ? (
+                {job.status !== "running" && isRetryableStage(job.stage) ? (
                   <form action={retryStageFromWorkersAction}>
                     <input name="id" type="hidden" value={job.issueId} />
                     <input name="stage" type="hidden" value={job.stage} />
