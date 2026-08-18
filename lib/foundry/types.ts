@@ -29,9 +29,9 @@ export type CycleStatus = "planned" | "active" | "closed";
 
 export type JobStatus = "running" | "failed" | "stale";
 
-export const STALE_JOB_MS = 10 * 60 * 1000;
+export const STALE_JOB_MS = 100 * 60 * 1000;
 
-export const MAX_ATTEMPTS = Number(process.env.FOUNDRY_MAX_ATTEMPTS ?? 3);
+export const MAX_ATTEMPTS = Number(process.env.FOUNDRY_MAX_ATTEMPTS ?? 30);
 
 export const ARTIFACT_KIND = {
   research: "research_brief",

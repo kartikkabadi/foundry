@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { workerQueueDepth, withWorkerSlot } from "../lib/foundry/concurrency";
+import { MAX_CONCURRENT_WORKERS, workerQueueDepth, withWorkerSlot } from "../lib/foundry/concurrency";
 
 describe("concurrency semaphore", () => {
   it("runs work through the semaphore", async () => {
@@ -16,28 +16,21 @@ describe("concurrency semaphore", () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
       active -= 1;
     };
-    await Promise.all(Array.from({ length: 8 }, () => withWorkerSlot(task)));
-    expect(peak).toBeLessThanOrEqual(2);
+    await Promise.all(Array.from({ length: MAX_CONCURRENT_WORKERS * 2 }, () => withWorkerSlot(task)));
+    expect(peak).toBeLessThanOrEqual(MAX_CONCURRENT_WORKERS);
   });
 
   it("reports queue depth while waiting", async () => {
     let resolveFirst!: () => void;
-    let resolveSecond!: () => void;
     const gate1 = new Promise<void>((resolve) => {
       resolveFirst = resolve;
     });
-    const gate2 = new Promise<void>((resolve) => {
-      resolveSecond = resolve;
-    });
-    const first = withWorkerSlot(() => gate1);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const second = withWorkerSlot(() => gate2);
+    const tasks = Array.from({ length: MAX_CONCURRENT_WORKERS }, () => withWorkerSlot(() => gate1));
     await new Promise((resolve) => setTimeout(resolve, 10));
     const queued = withWorkerSlot(async () => 1);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(workerQueueDepth()).toBe(1);
     resolveFirst();
-    resolveSecond();
-    await Promise.all([first, second, queued]);
+    await Promise.all([...tasks, queued]);
   });
 });

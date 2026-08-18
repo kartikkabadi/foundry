@@ -60,10 +60,10 @@ describe("backoff", () => {
     expect(third).toBeGreaterThan(second);
   });
 
-  it("caps at 60 seconds plus jitter", () => {
-    const delay = backoffMs(10);
-    expect(delay).toBeLessThanOrEqual(60_250);
-    expect(delay).toBeGreaterThanOrEqual(60_000);
+  it("caps at 600 seconds plus jitter", () => {
+    const delay = backoffMs(12);
+    expect(delay).toBeLessThanOrEqual(600_250);
+    expect(delay).toBeGreaterThanOrEqual(600_000);
   });
 
   it("produces an ISO next-retry timestamp after now", () => {
