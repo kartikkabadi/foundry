@@ -84,8 +84,9 @@ describe("queue", () => {
       targetUrl: "https://github.com/kartikkabadi/foundry.git",
       size: "xs",
     });
-    // Drive attempts up to MAX_ATTEMPTS: each claim increments attempts, and
-    // a transient failure schedules a retry until the cap is reached.
+    // Each claim/retry cycle advances attempts: the decision stays "retry"
+    // through the last retryable attempt (MAX_ATTEMPTS - 1) and becomes
+    // "permanent" when the cap is crossed at MAX_ATTEMPTS.
     let decision: RetryDecision | null = null;
     for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
       tryClaimJob(issue.id, "research");
@@ -96,11 +97,46 @@ describe("queue", () => {
         Date.now(),
       );
     }
-    expect(decision?.kind).toBe("permanent");
+    expect(decision).toMatchObject({ kind: "permanent", attempts: MAX_ATTEMPTS });
     const job = getJob(issue.id, "research");
     expect(job?.attempts).toBe(MAX_ATTEMPTS);
     expect(job?.retryable).toBe(false);
     expect(job?.nextRetryAt).toBeNull();
+  });
+
+  it("retries while below the attempt cap and goes permanent exactly at it", () => {
+    const issue = createIssue({
+      idea: "Queue cap boundary",
+      targetUrl: "https://github.com/kartikkabadi/foundry.git",
+      size: "xs",
+    });
+    // One claim + transient failure schedules a retry (attempt 1).
+    tryClaimJob(issue.id, "research");
+    expect(decideRetry(issue.id, "research", new Error("fetch failed"))).toMatchObject({
+      kind: "retry",
+      attempts: 1,
+    });
+    // The attempt before the cap is still retryable.
+    resetJobAttempts(issue.id, "research");
+    for (let i = 0; i < MAX_ATTEMPTS - 1; i += 1) {
+      tryClaimJob(issue.id, "research");
+      scheduleRetry(
+        issue.id,
+        "research",
+        new Error("The operation was aborted due to timeout"),
+        Date.now(),
+      );
+    }
+    expect(decideRetry(issue.id, "research", new Error("fetch failed"))).toMatchObject({
+      kind: "retry",
+      attempts: MAX_ATTEMPTS - 1,
+    });
+    // One more claim crosses the cap: permanent at exactly MAX_ATTEMPTS.
+    tryClaimJob(issue.id, "research");
+    expect(decideRetry(issue.id, "research", new Error("fetch failed"))).toMatchObject({
+      kind: "permanent",
+      attempts: MAX_ATTEMPTS,
+    });
   });
 
   it("does not retry permanent errors", () => {
