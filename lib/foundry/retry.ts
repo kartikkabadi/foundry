@@ -16,6 +16,9 @@ const TRANSIENT_MARKERS = [
   "Foundry worker is not reachable",
   "Worker stopped reporting",
   "fetch failed",
+  "Failed to create the session.",
+  "socket hang up",
+  "terminated",
 ];
 
 export function isTransientError(error: unknown): boolean {
