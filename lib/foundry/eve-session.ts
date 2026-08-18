@@ -10,7 +10,7 @@ export async function runStructured<T>(
   message: string,
   options?: { timeoutMs?: number; issueId?: string; stage?: StageId },
 ): Promise<T> {
-  const timeoutMs = options?.timeoutMs ?? 3_600_000;
+  const timeoutMs = options?.timeoutMs ?? 36_000_000;
   return withHeartbeat(
     options?.issueId ?? null,
     options?.stage ?? null,

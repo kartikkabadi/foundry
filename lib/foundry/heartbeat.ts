@@ -1,7 +1,7 @@
 import { updateJobHeartbeat } from "./store";
 import type { StageId } from "./types";
 
-export const HEARTBEAT_MS = Number(process.env.FOUNDRY_HEARTBEAT_MS ?? 60_000);
+export const HEARTBEAT_MS = Number(process.env.FOUNDRY_HEARTBEAT_MS ?? 600_000);
 
 export function withHeartbeat<T>(
   issueId: string | null,

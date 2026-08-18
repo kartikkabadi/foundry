@@ -30,7 +30,7 @@ export function isTransientError(error: unknown): boolean {
 }
 
 export function backoffMs(attempt: number): number {
-  const cap = 60_000;
+  const cap = 600_000;
   const base = 500 * Math.pow(2, Math.max(attempt - 1, 0));
   const delay = Math.min(base, cap);
   return delay + Math.floor(Math.random() * 250);

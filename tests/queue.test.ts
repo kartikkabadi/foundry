@@ -9,6 +9,8 @@ import {
   tryClaimJob,
 } from "../lib/foundry/store";
 import { decideRetry, drainRetries, scheduleRetry } from "../lib/foundry/queue";
+import type { RetryDecision } from "../lib/foundry/retry";
+import { MAX_ATTEMPTS } from "../lib/foundry/types";
 
 process.env.FOUNDRY_DATA = `/tmp/foundry-test-store-${process.pid}`;
 
@@ -82,17 +84,21 @@ describe("queue", () => {
       targetUrl: "https://github.com/kartikkabadi/foundry.git",
       size: "xs",
     });
-    tryClaimJob(issue.id, "research");
-    // Attempt 1 fails -> retry scheduled.
-    scheduleRetry(issue.id, "research", new Error("The operation was aborted due to timeout"), Date.now());
-    // Drain re-claims (attempts -> 2), fails -> retry scheduled.
-    tryClaimJob(issue.id, "research");
-    scheduleRetry(issue.id, "research", new Error("The operation was aborted due to timeout"), Date.now());
-    // Drain re-claims (attempts -> 3), fails -> permanent.
-    tryClaimJob(issue.id, "research");
-    const decision = scheduleRetry(issue.id, "research", new Error("The operation was aborted due to timeout"), Date.now());
-    expect(decision.kind).toBe("permanent");
+    // Drive attempts up to MAX_ATTEMPTS: each claim increments attempts, and
+    // a transient failure schedules a retry until the cap is reached.
+    let decision: RetryDecision | null = null;
+    for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+      tryClaimJob(issue.id, "research");
+      decision = scheduleRetry(
+        issue.id,
+        "research",
+        new Error("The operation was aborted due to timeout"),
+        Date.now(),
+      );
+    }
+    expect(decision?.kind).toBe("permanent");
     const job = getJob(issue.id, "research");
+    expect(job?.attempts).toBe(MAX_ATTEMPTS);
     expect(job?.retryable).toBe(false);
     expect(job?.nextRetryAt).toBeNull();
   });

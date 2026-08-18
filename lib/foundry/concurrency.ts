@@ -1,4 +1,4 @@
-export const MAX_CONCURRENT_WORKERS = Number(process.env.FOUNDRY_MAX_CONCURRENT_WORKERS ?? 2);
+export const MAX_CONCURRENT_WORKERS = Number(process.env.FOUNDRY_MAX_CONCURRENT_WORKERS ?? 20);
 
 type Waiter = {
   resolve: () => void;

@@ -3,7 +3,7 @@ import { drainRetries, scheduleRetry } from "./queue";
 import { listIssues, listStaleJobs, reconcileStaleJobs } from "./store";
 import { isOneshotWalking, STALE_JOB_MS } from "./types";
 
-export const WATCHDOG_MS = Number(process.env.FOUNDRY_WATCHDOG_MS ?? 30_000);
+export const WATCHDOG_MS = Number(process.env.FOUNDRY_WATCHDOG_MS ?? 300_000);
 
 export function reconcileStaleToRetry(maxAgeMs: number = STALE_JOB_MS): number {
   reconcileStaleJobs(maxAgeMs);
