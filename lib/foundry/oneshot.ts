@@ -4,6 +4,7 @@ import { researchInflight, startResearch } from "./research";
 import { specInflight, startSpec } from "./spec";
 import { startWalkStage, walkInflight } from "./walk";
 import { startExecute, executeInflight } from "./execute";
+import { scheduleRetry } from "./queue";
 import {
   answerDecisionTicket,
   completeActiveStage,
@@ -76,7 +77,6 @@ export async function runOneshotWalk(issueId: string): Promise<void> {
     }
   }
 }
-
 export function tickOneshot(issueId: string): OneshotTick {
   const loaded = getIssue(issueId);
   if (!loaded) return { action: "skip" };
@@ -229,8 +229,12 @@ function autoAdvance(issueId: string, stage: StageId, kind: string): OneshotTick
 function jobFailure(issueId: string, stage: StageId): OneshotTick | null {
   const job = getJob(issueId, stage);
   if (job?.status !== "failed" && job?.status !== "stale") return null;
-  const reason = `${stage} worker ${job.status}${job.error ? `: ${job.error}` : ""}`;
-  return stopOneshot(issueId, reason, "oneshot");
+  if (job.retryable || job.nextRetryAt) {
+    return { action: "wait_job", stage };
+  }
+  const decision = scheduleRetry(issueId, stage, new Error(job.error ?? `${stage} worker ${job.status}`));
+  if (decision.kind === "retry") return { action: "wait_job", stage };
+  return stopOneshot(issueId, `${stage} worker ${job.status}${job.error ? `: ${job.error}` : ""}`, "oneshot");
 }
 
 function stopOneshot(
@@ -243,7 +247,7 @@ function stopOneshot(
   return { action: "stop", reason };
 }
 
-function startStageWorker(issueId: string, stage: StageId): void {
+export function startStageWorker(issueId: string, stage: StageId): void {
   switch (stage) {
     case "research":
       startResearch(issueId);
