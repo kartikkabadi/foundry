@@ -20,6 +20,7 @@ import {
   getIssue,
   getProject,
   isGrillHeld,
+  resetJobAttempts,
   setGrillHold,
   setOneshotStopReason,
   setWalkHold,
@@ -72,6 +73,7 @@ export async function retryResearchAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const loaded = requireIssue(id);
   clearJob(id, "research");
+  resetJobAttempts(id, "research");
   setOneshotStopReason(id, null);
   startResearch(id);
   kickOneshot(loaded.issue);
@@ -83,6 +85,7 @@ export async function retryStageAction(formData: FormData) {
   const loaded = requireIssue(id);
   const stage = loaded.issue.currentStage;
   clearJob(id, stage);
+  resetJobAttempts(id, stage);
   appendEvent(id, `${stage}.retry`, {}, { source: "operator", reason: "re-run" });
   switch (stage) {
     case "research":
@@ -205,6 +208,10 @@ export async function resumeOneshotAction(formData: FormData) {
   if (loaded.issue.runMode !== "oneshot") throw new Error("Resume is only for One shot Issues");
   setOneshotStopReason(id, null);
   setWalkHold(id, false);
+  if (loaded.issue.currentStage !== "merge") {
+    clearJob(id, loaded.issue.currentStage);
+    resetJobAttempts(id, loaded.issue.currentStage);
+  }
   startOneshotWalk(id);
   redirect(`/issues/${id}`);
 }
@@ -255,8 +262,13 @@ export async function assignIssueAction(formData: FormData) {
 export async function retryStageFromWorkersAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const stage = String(formData.get("stage") ?? "").trim() as StageId;
-  requireIssue(id);
+  const loaded = requireIssue(id);
   clearJob(id, stage);
+  resetJobAttempts(id, stage);
+  if (loaded.issue.runMode === "oneshot") {
+    setOneshotStopReason(id, null);
+    startOneshotWalk(id);
+  }
   switch (stage) {
     case "research":
       startResearch(id);
