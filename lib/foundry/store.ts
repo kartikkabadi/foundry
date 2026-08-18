@@ -320,7 +320,6 @@ export function createModule(input: { projectId: string; name: string }): Module
 }
 
 export function listIssues(): Issue[] {
-  reconcileStaleJobs();
   const rows = database().prepare("SELECT * FROM issues ORDER BY created_at DESC").all() as Record<
     string,
     unknown
@@ -329,7 +328,6 @@ export function listIssues(): Issue[] {
 }
 
 export function listIssuesByProject(projectId: string): Issue[] {
-  reconcileStaleJobs();
   const rows = database()
     .prepare("SELECT * FROM issues WHERE project_id = ? ORDER BY created_at DESC")
     .all(projectId) as Record<string, unknown>[];
@@ -337,7 +335,6 @@ export function listIssuesByProject(projectId: string): Issue[] {
 }
 
 export function listIssuesByCycle(cycleId: string): Issue[] {
-  reconcileStaleJobs();
   const rows = database()
     .prepare("SELECT * FROM issues WHERE cycle_id = ? ORDER BY created_at DESC")
     .all(cycleId) as Record<string, unknown>[];
@@ -345,7 +342,6 @@ export function listIssuesByCycle(cycleId: string): Issue[] {
 }
 
 export function listIssuesByModule(moduleId: string): Issue[] {
-  reconcileStaleJobs();
   const rows = database()
     .prepare("SELECT * FROM issues WHERE module_id = ? ORDER BY created_at DESC")
     .all(moduleId) as Record<string, unknown>[];
@@ -361,7 +357,6 @@ export function listGateIssues(): Issue[] {
 }
 
 export function getIssue(id: string): { issue: Issue; stages: IssueStage[] } | null {
-  reconcileStaleJobs();
   const row = database().prepare("SELECT * FROM issues WHERE id = ?").get(id) as
     | Record<string, unknown>
     | undefined;
@@ -779,7 +774,6 @@ export function currentGrillRound(issueId: string): number {
 }
 
 export function navCounts(): NavCounts {
-  reconcileStaleJobs();
   return {
     issues: listIssues().length,
     gates: listGateIssues().length,
