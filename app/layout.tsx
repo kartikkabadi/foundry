@@ -3,8 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { AppShell } from "@/app/_components/app-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { startOneshotWalk } from "@/lib/foundry/oneshot";
-import { isOneshotWalking } from "@/lib/foundry/types";
+import { ensureWatchdog } from "@/lib/foundry/watchdog";
 import { listIssues, navCounts } from "@/lib/foundry/store";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -32,10 +31,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
+  ensureWatchdog();
   const issues = listIssues();
-  for (const issue of issues) {
-    if (isOneshotWalking(issue)) startOneshotWalk(issue.id);
-  }
   const counts = navCounts();
   return (
     <html className={cn("dark", sans.variable, mono.variable)} lang="en">
