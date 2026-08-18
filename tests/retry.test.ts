@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoffMs, isPermanentFailure, isRetryScheduled, isTransientError, nextRetryAt } from "../lib/foundry/retry";
+import { BACKOFF_CAP_MS, backoffMs, isPermanentFailure, isRetryScheduled, isTransientError, nextRetryAt } from "../lib/foundry/retry";
 
 describe("retry classification", () => {
   it("classifies timeouts as transient", () => {
@@ -60,10 +60,10 @@ describe("backoff", () => {
     expect(third).toBeGreaterThan(second);
   });
 
-  it("caps at 600 seconds plus jitter", () => {
+  it("caps at BACKOFF_CAP_MS plus jitter", () => {
     const delay = backoffMs(12);
-    expect(delay).toBeLessThanOrEqual(600_250);
-    expect(delay).toBeGreaterThanOrEqual(600_000);
+    expect(delay).toBeLessThanOrEqual(BACKOFF_CAP_MS + 250);
+    expect(delay).toBeGreaterThanOrEqual(BACKOFF_CAP_MS);
   });
 
   it("produces an ISO next-retry timestamp after now", () => {

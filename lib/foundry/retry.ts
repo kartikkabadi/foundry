@@ -29,10 +29,11 @@ export function isTransientError(error: unknown): boolean {
   return TRANSIENT_MARKERS.some((marker) => message.includes(marker));
 }
 
+export const BACKOFF_CAP_MS = 600_000;
+
 export function backoffMs(attempt: number): number {
-  const cap = 600_000;
   const base = 500 * Math.pow(2, Math.max(attempt - 1, 0));
-  const delay = Math.min(base, cap);
+  const delay = Math.min(base, BACKOFF_CAP_MS);
   return delay + Math.floor(Math.random() * 250);
 }
 
