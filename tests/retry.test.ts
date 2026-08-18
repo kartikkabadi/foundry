@@ -28,6 +28,18 @@ describe("retry classification", () => {
     expect(isTransientError(new TypeError("fetch failed"))).toBe(true);
   });
 
+  it("classifies eve session creation failure as transient", () => {
+    expect(isTransientError(new Error("Failed to create the session."))).toBe(true);
+  });
+
+  it("classifies socket hang up as transient", () => {
+    expect(isTransientError(new Error("socket hang up"))).toBe(true);
+  });
+
+  it("classifies terminated eve sandbox as transient", () => {
+    expect(isTransientError(new Error("terminated"))).toBe(true);
+  });
+
   it("classifies grill empty-not-done as transient", () => {
     expect(isTransientError(new Error("Grill returned no tickets and did not set done. Re-run this round."))).toBe(
       true,
