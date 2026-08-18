@@ -20,11 +20,13 @@ import {
   getIssue,
   getProject,
   isGrillHeld,
+  resetJobAttempts,
   setGrillHold,
   setOneshotStopReason,
   setWalkHold,
   unansweredTicketCount,
 } from "@/lib/foundry/store";
+import { startExecute } from "@/lib/foundry/execute";
 import { startWalkStage } from "@/lib/foundry/walk";
 import { parseRunMode, type Issue, type IssueSize, type StageId } from "@/lib/foundry/types";
 
@@ -71,6 +73,7 @@ export async function retryResearchAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const loaded = requireIssue(id);
   clearJob(id, "research");
+  resetJobAttempts(id, "research");
   setOneshotStopReason(id, null);
   startResearch(id);
   kickOneshot(loaded.issue);
@@ -82,6 +85,7 @@ export async function retryStageAction(formData: FormData) {
   const loaded = requireIssue(id);
   const stage = loaded.issue.currentStage;
   clearJob(id, stage);
+  resetJobAttempts(id, stage);
   appendEvent(id, `${stage}.retry`, {}, { source: "operator", reason: "re-run" });
   switch (stage) {
     case "research":
@@ -97,11 +101,13 @@ export async function retryStageAction(formData: FormData) {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "merge":
     case "hygiene":
       startWalkStage(id);
+      break;
+    case "execute":
+      startExecute(id);
       break;
     case "intake":
       break;
@@ -202,6 +208,10 @@ export async function resumeOneshotAction(formData: FormData) {
   if (loaded.issue.runMode !== "oneshot") throw new Error("Resume is only for One shot Issues");
   setOneshotStopReason(id, null);
   setWalkHold(id, false);
+  if (loaded.issue.currentStage !== "merge") {
+    clearJob(id, loaded.issue.currentStage);
+    resetJobAttempts(id, loaded.issue.currentStage);
+  }
   startOneshotWalk(id);
   redirect(`/issues/${id}`);
 }
@@ -252,7 +262,41 @@ export async function assignIssueAction(formData: FormData) {
 export async function retryStageFromWorkersAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const stage = String(formData.get("stage") ?? "").trim() as StageId;
-  requireIssue(id);
+  const loaded = requireIssue(id);
   clearJob(id, stage);
+  resetJobAttempts(id, stage);
+  if (loaded.issue.runMode === "oneshot") {
+    setOneshotStopReason(id, null);
+    startOneshotWalk(id);
+  }
+  switch (stage) {
+    case "research":
+      startResearch(id);
+      break;
+    case "grill":
+      startGrill(id);
+      break;
+    case "spec":
+      startSpec(id);
+      break;
+    case "improve":
+    case "plan_pack":
+    case "council":
+    case "architecture":
+    case "evidence":
+    case "merge":
+    case "hygiene":
+      startWalkStage(id);
+      break;
+    case "execute":
+      startExecute(id);
+      break;
+    case "intake":
+      break;
+    default: {
+      const _exhaustive: never = stage;
+      return _exhaustive;
+    }
+  }
   redirect("/workers");
 }

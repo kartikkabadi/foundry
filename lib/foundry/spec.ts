@@ -15,7 +15,6 @@ import {
 import { ARTIFACT_KIND } from "./types";
 
 export const SPEC_KIND = "spec_doc";
-
 const specSchema = z.object({
   title: z.string(),
   spec: z.string(),
@@ -61,7 +60,7 @@ export async function runSpec(issueId: string): Promise<void> {
         parsed ? `Research: ${JSON.stringify(parsed)}` : "",
         answers ? `Grill answers:\n${answers}` : "",
       ].join("\n"),
-      300_000,
+      { issueId: issueId, stage: "spec" },
     );
     saveArtifact({
       issueId,

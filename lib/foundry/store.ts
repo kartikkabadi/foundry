@@ -68,6 +68,9 @@ const SCHEMA = `
       status TEXT NOT NULL,
       error TEXT,
       started_at TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 1,
+      next_retry_at TEXT,
+      retryable INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (issue_id, stage)
     );
     CREATE TABLE IF NOT EXISTS projects (
@@ -101,6 +104,9 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issues", "walk_hold", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(conn, "issues", "oneshot_stop_reason", "TEXT");
   ensureColumn(conn, "issue_jobs", "heartbeat_at", "TEXT");
+  ensureColumn(conn, "issue_jobs", "attempts", "INTEGER NOT NULL DEFAULT 1");
+  ensureColumn(conn, "issue_jobs", "next_retry_at", "TEXT");
+  ensureColumn(conn, "issue_jobs", "retryable", "INTEGER NOT NULL DEFAULT 0");
 }
 
 function backfillProjects(conn: DatabaseSync): void {
@@ -117,6 +123,7 @@ function backfillProjects(conn: DatabaseSync): void {
 function database(): DatabaseSync {
   if (!db) {
     db = new DatabaseSync(dbPath());
+    db.exec("PRAGMA journal_mode = WAL");
     db.exec(SCHEMA);
     migrate(db);
     backfillProjects(db);
@@ -491,6 +498,9 @@ function mapJob(row: Record<string, unknown>): IssueJob {
     error: row.error ? String(row.error) : null,
     startedAt,
     heartbeatAt: row.heartbeat_at ? String(row.heartbeat_at) : startedAt,
+    attempts: Number(row.attempts ?? 1),
+    nextRetryAt: row.next_retry_at ? String(row.next_retry_at) : null,
+    retryable: Boolean(row.retryable),
   };
 }
 
@@ -505,7 +515,6 @@ function mapArtifact(row: Record<string, unknown>): IssueArtifact {
 }
 
 export function getJob(issueId: string, stage: StageId): IssueJob | null {
-  reconcileStaleJobs();
   const row = database()
     .prepare("SELECT * FROM issue_jobs WHERE issue_id = ? AND stage = ?")
     .get(issueId, stage) as Record<string, unknown> | undefined;
@@ -513,7 +522,6 @@ export function getJob(issueId: string, stage: StageId): IssueJob | null {
 }
 
 export function listJobs(): IssueJob[] {
-  reconcileStaleJobs();
   const rows = database()
     .prepare("SELECT * FROM issue_jobs ORDER BY started_at DESC")
     .all() as Record<string, unknown>[];
@@ -553,18 +561,68 @@ export function saveArtifact(input: {
 
 export function tryClaimJob(issueId: string, stage: StageId, startedAt?: string): boolean {
   const now = startedAt ?? new Date().toISOString();
-  database()
+  const result = database()
     .prepare(
-      "INSERT OR REPLACE INTO issue_jobs (issue_id, stage, status, error, started_at, heartbeat_at) VALUES (?, ?, ?, NULL, ?, ?)",
+      "INSERT OR IGNORE INTO issue_jobs (issue_id, stage, status, error, started_at, heartbeat_at, attempts, next_retry_at, retryable) VALUES (?, ?, ?, NULL, ?, ?, 1, NULL, 0)",
     )
     .run(issueId, stage, "running", now, now);
-  return true;
+  if (result.changes > 0) return true;
+  const updated = database()
+    .prepare(
+      "UPDATE issue_jobs SET status = ?, error = NULL, heartbeat_at = ?, attempts = attempts + 1, next_retry_at = NULL, retryable = 0 WHERE issue_id = ? AND stage = ? AND status <> ?",
+    )
+    .run("running", now, issueId, stage, "running");
+  return updated.changes > 0;
 }
 
 export function failJob(issueId: string, stage: StageId, error: string): void {
   database()
     .prepare("UPDATE issue_jobs SET status = ?, error = ? WHERE issue_id = ? AND stage = ?")
     .run("failed", error, issueId, stage);
+}
+
+export function scheduleJobRetry(
+  issueId: string,
+  stage: StageId,
+  error: string,
+  nextRetryAt: string | null,
+  retryable: boolean,
+): void {
+  database()
+    .prepare(
+      "UPDATE issue_jobs SET status = ?, error = ?, next_retry_at = ?, retryable = ? WHERE issue_id = ? AND stage = ?",
+    )
+    .run("failed", error, nextRetryAt, retryable ? 1 : 0, issueId, stage);
+}
+
+export function updateJobHeartbeat(issueId: string, stage: StageId): void {
+  database()
+    .prepare("UPDATE issue_jobs SET heartbeat_at = ? WHERE issue_id = ? AND stage = ?")
+    .run(new Date().toISOString(), issueId, stage);
+}
+
+export function resetJobAttempts(issueId: string, stage: StageId): void {
+  database()
+    .prepare("UPDATE issue_jobs SET attempts = 1, next_retry_at = NULL, retryable = 0 WHERE issue_id = ? AND stage = ?")
+    .run(issueId, stage);
+}
+
+export function listStaleJobs(): IssueJob[] {
+  const rows = database()
+    .prepare(
+      "SELECT * FROM issue_jobs WHERE status = ? AND retryable = 0 AND next_retry_at IS NULL",
+    )
+    .all("stale") as Record<string, unknown>[];
+  return rows.map(mapJob);
+}
+
+export function listDueRetries(now: string): IssueJob[] {
+  const rows = database()
+    .prepare(
+      "SELECT * FROM issue_jobs WHERE retryable = 1 AND next_retry_at IS NOT NULL AND next_retry_at <= ? ORDER BY next_retry_at ASC",
+    )
+    .all(now) as Record<string, unknown>[];
+  return rows.map(mapJob);
 }
 
 export function markJobStale(issueId: string, stage: StageId): void {
@@ -580,21 +638,14 @@ export function clearJob(issueId: string, stage: StageId): void {
 export function reconcileStaleJobs(maxAgeMs: number = STALE_JOB_MS): number {
   const cutoff = Date.now() - maxAgeMs;
   const rows = database()
-    .prepare("SELECT * FROM issue_jobs WHERE status = ?")
-    .all("running") as Record<string, unknown>[];
-  let marked = 0;
+    .prepare(
+      "SELECT issue_id, stage, error FROM issue_jobs WHERE status = ? AND heartbeat_at <= ?",
+    )
+    .all("running", new Date(cutoff).toISOString()) as Record<string, unknown>[];
   for (const row of rows) {
-    const beat = Date.parse(String(row.heartbeat_at ?? row.started_at));
-    if (!Number.isNaN(beat) && beat < cutoff) {
-      markJobStale(String(row.issue_id), row.stage as StageId);
-      marked += 1;
-    }
+    markJobStale(String(row.issue_id), row.stage as StageId);
   }
-  return marked;
-}
-
-export function markStaleJobs(maxAgeMs: number = STALE_JOB_MS): number {
-  return reconcileStaleJobs(maxAgeMs);
+  return rows.length;
 }
 
 export function listDecisionTickets(issueId: string): DecisionTicket[] {
@@ -732,8 +783,7 @@ export function navCounts(): NavCounts {
   return {
     issues: listIssues().length,
     gates: listGateIssues().length,
-    workers: listJobs().filter((job) => job.status === "running" || job.status === "stale" || job.status === "failed")
-      .length,
+    workers: listJobs().filter((job) => job.status !== "running").length,
     projects: listProjects().length,
     cycles: listCycles().length,
     modules: listModules().length,

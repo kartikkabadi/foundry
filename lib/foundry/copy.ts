@@ -1,4 +1,5 @@
 import { isOneshotWalking, type Issue, type IssueJob, type JobStatus, type RunMode, type StageId, type StageStatus } from "./types";
+import { isPermanentFailure, isRetryScheduled } from "./retry";
 
 export const STAGE_LABEL: Record<StageId, string> = {
   intake: "Intake",
@@ -82,10 +83,16 @@ export function nowWhat(
   }
   if (job?.status === "running") return `${jobVerb(stage)}.`;
   if (job?.status === "failed") {
-    return `${STAGE_LABEL[stage]} failed. Retry it — the worker is not still working.`;
+    if (isRetryScheduled(job)) {
+      const waitMs = (job.nextRetryAt ? Date.parse(job.nextRetryAt) : 0) - Date.now();
+      return waitMs > 0
+        ? `${STAGE_LABEL[stage]} failed but will auto-retry in ${Math.ceil(waitMs / 1000)}s.`
+        : `${STAGE_LABEL[stage]} failed and is retrying now.`;
+    }
+    return `${STAGE_LABEL[stage]} failed permanently after ${job.attempts} attempts. Retry it — the worker is not still working.`;
   }
   if (job?.status === "stale") {
-    return `${STAGE_LABEL[stage]} stalled. Retry it — the worker is not still working.`;
+    return `${STAGE_LABEL[stage]} stalled and will auto-retry.`;
   }
   if (extras?.runMode === "oneshot") {
     switch (stage) {
@@ -182,7 +189,10 @@ export function issueListStatus(issue: Issue, job: IssueJob | null): string {
     if (job?.status === "stale") return `${STAGE_LABEL[issue.currentStage]} stalled`;
     return "One shot walking";
   }
-  if (job?.status === "failed") return `${STAGE_LABEL[issue.currentStage]} failed`;
+  if (job?.status === "failed") {
+    if (isRetryScheduled(job)) return `${STAGE_LABEL[issue.currentStage]} retrying`;
+    return `${STAGE_LABEL[issue.currentStage]} failed`;
+  }
   if (job?.status === "stale") return `${STAGE_LABEL[issue.currentStage]} stalled`;
   if (job?.status === "running") return jobVerb(issue.currentStage);
   switch (issue.currentStage) {

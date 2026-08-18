@@ -3,6 +3,8 @@ import { appendEvent } from "./log";
 import { researchInflight, startResearch } from "./research";
 import { specInflight, startSpec } from "./spec";
 import { startWalkStage, walkInflight } from "./walk";
+import { startExecute, executeInflight } from "./execute";
+import { scheduleRetry } from "./queue";
 import {
   answerDecisionTicket,
   completeActiveStage,
@@ -75,7 +77,6 @@ export async function runOneshotWalk(issueId: string): Promise<void> {
     }
   }
 }
-
 export function tickOneshot(issueId: string): OneshotTick {
   const loaded = getIssue(issueId);
   if (!loaded) return { action: "skip" };
@@ -125,10 +126,11 @@ function tickStage(issue: Issue): OneshotTick {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "hygiene":
       return tickDocumentStage(issue.id, stage);
+    case "execute":
+      return tickExecuteStage(issue.id);
     case "merge":
       return stopOneshot(issue.id, ONESHOT_MERGE_STOP, "merge-not-real");
     default: {
@@ -197,6 +199,22 @@ function tickDocumentStage(issueId: string, stage: StageId): OneshotTick {
   return { action: "start_worker", stage };
 }
 
+function tickExecuteStage(issueId: string): OneshotTick {
+  const failed = jobFailure(issueId, "execute");
+  if (failed) return failed;
+  const running =
+    getJob(issueId, "execute")?.status === "running" || executeInflight(issueId);
+  if (running) {
+    return { action: "wait_job", stage: "execute" };
+  }
+  const kind = artifactKindFor("execute");
+  if (kind && getArtifact(issueId, kind)) {
+    return autoAdvance(issueId, "execute", kind);
+  }
+  startStageWorker(issueId, "execute");
+  return { action: "start_worker", stage: "execute" };
+}
+
 function autoAdvance(issueId: string, stage: StageId, kind: string): OneshotTick {
   appendEvent(
     issueId,
@@ -211,8 +229,12 @@ function autoAdvance(issueId: string, stage: StageId, kind: string): OneshotTick
 function jobFailure(issueId: string, stage: StageId): OneshotTick | null {
   const job = getJob(issueId, stage);
   if (job?.status !== "failed" && job?.status !== "stale") return null;
-  const reason = `${stage} worker ${job.status}${job.error ? `: ${job.error}` : ""}`;
-  return stopOneshot(issueId, reason, "oneshot");
+  if (job.retryable || job.nextRetryAt) {
+    return { action: "wait_job", stage };
+  }
+  const decision = scheduleRetry(issueId, stage, new Error(job.error ?? `${stage} worker ${job.status}`));
+  if (decision.kind === "retry") return { action: "wait_job", stage };
+  return stopOneshot(issueId, `${stage} worker ${job.status}${job.error ? `: ${job.error}` : ""}`, "oneshot");
 }
 
 function stopOneshot(
@@ -225,7 +247,7 @@ function stopOneshot(
   return { action: "stop", reason };
 }
 
-function startStageWorker(issueId: string, stage: StageId): void {
+export function startStageWorker(issueId: string, stage: StageId): void {
   switch (stage) {
     case "research":
       startResearch(issueId);
@@ -240,10 +262,12 @@ function startStageWorker(issueId: string, stage: StageId): void {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "hygiene":
       startWalkStage(issueId);
+      return;
+    case "execute":
+      startExecute(issueId);
       return;
     case "intake":
     case "merge":

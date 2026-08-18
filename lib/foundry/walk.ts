@@ -27,7 +27,6 @@ const WORKER_STAGES: StageId[] = [
   "plan_pack",
   "council",
   "architecture",
-  "execute",
   "evidence",
   "merge",
   "hygiene",
@@ -73,6 +72,7 @@ export async function runWalkStage(issueId: string): Promise<void> {
         spec ? `Spec: ${spec.body}` : "No spec stored.",
         `Write the ${stage} artifact.`,
       ].join("\n"),
+      { issueId: issueId, stage },
     );
     saveArtifact({
       issueId,

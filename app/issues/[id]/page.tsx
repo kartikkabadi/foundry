@@ -10,6 +10,7 @@ import { ResearchPanel } from "@/app/issues/[id]/research-panel";
 import { SpecPanel } from "@/app/issues/[id]/spec-panel";
 import { StageHero } from "@/app/issues/[id]/stage-hero";
 import { WalkStrip } from "@/app/issues/[id]/walk-strip";
+import { executeInflight, startExecute } from "@/lib/foundry/execute";
 import { startGrill } from "@/lib/foundry/grill";
 import { readEvents } from "@/lib/foundry/log";
 import { startOneshotWalk } from "@/lib/foundry/oneshot";
@@ -36,27 +37,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function boot(issueId: string, stage: StageId): boolean {
+  const job = getJob(issueId, stage);
+  const notFailed = job?.status !== "failed" && job?.status !== "stale";
   switch (stage) {
     case "research": {
-      const { brief, job } = researchState(issueId);
-      const shouldRun = !brief && job?.status !== "failed" && job?.status !== "stale";
+      const { brief } = researchState(issueId);
+      const shouldRun = !brief && notFailed;
       if (shouldRun) startResearch(issueId);
       return shouldRun && !brief;
     }
     case "grill": {
-      const tickets = listDecisionTickets(issueId);
-      const job = getJob(issueId, "grill");
-      const unanswered = tickets.filter((ticket) => !ticket.answer).length;
-      const held = isGrillHeld(issueId);
-      const shouldRun =
-        unanswered === 0 && !held && job?.status !== "failed" && job?.status !== "stale";
+      const unanswered = listDecisionTickets(issueId).filter((ticket) => !ticket.answer).length;
+      const shouldRun = unanswered === 0 && !isGrillHeld(issueId) && notFailed;
       if (shouldRun) startGrill(issueId);
       return true;
     }
     case "spec": {
       const artifact = getArtifact(issueId, "spec_doc");
-      const job = getJob(issueId, "spec");
-      const shouldRun = !artifact && job?.status !== "failed" && job?.status !== "stale";
+      const shouldRun = !artifact && notFailed;
       if (shouldRun) startSpec(issueId);
       return Boolean(!artifact && (job?.status === "running" || shouldRun));
     }
@@ -64,16 +62,20 @@ function boot(issueId: string, stage: StageId): boolean {
     case "plan_pack":
     case "council":
     case "architecture":
-    case "execute":
     case "evidence":
     case "merge":
     case "hygiene": {
       const kind = artifactKindFor(stage);
       const artifact = kind ? getArtifact(issueId, kind) : null;
-      const job = getJob(issueId, stage);
-      const shouldRun = !artifact && job?.status !== "failed" && job?.status !== "stale";
+      const shouldRun = !artifact && notFailed;
       if (shouldRun) startWalkStage(issueId);
       return Boolean(!artifact && (job?.status === "running" || shouldRun));
+    }
+    case "execute": {
+      const artifact = getArtifact(issueId, "execute");
+      const shouldRun = !artifact && notFailed;
+      if (shouldRun) startExecute(issueId);
+      return Boolean(!artifact && (job?.status === "running" || shouldRun || executeInflight(issueId)));
     }
     case "intake":
       return false;

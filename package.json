@@ -10,6 +10,7 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:eve": "eve build",
     "dev:eve": "eve dev",
@@ -53,7 +54,8 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "tsx": "^4.23.12",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "ai": "^7.0.58"

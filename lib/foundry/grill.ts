@@ -3,6 +3,7 @@ import "eve/client";
 import { runStructured } from "./eve-session";
 import { appendEvent } from "./log";
 import { parseResearchBrief } from "./research";
+import { GRILL_EMPTY_NOT_DONE } from "./retry";
 import { startSpec } from "./spec";
 import {
   clearJob,
@@ -20,12 +21,11 @@ import {
 } from "./store";
 import { ARTIFACT_KIND } from "./types";
 
+export { GRILL_EMPTY_NOT_DONE };
+
 export const GRILL_INFLIGHT = (globalThis as typeof globalThis & {
   __foundryGrill?: Map<string, Promise<void>>;
 }).__foundryGrill ??= new Map();
-
-export const GRILL_EMPTY_NOT_DONE =
-  "Grill returned no tickets and did not set done. Re-run this round.";
 
 export const GRILL_SUMMARY_KIND = ARTIFACT_KIND.grillSummary;
 
@@ -100,6 +100,7 @@ export async function runGrill(issueId: string): Promise<void> {
         parsed ? `Brief: ${JSON.stringify(parsed)}` : "No research brief.",
         answered ? `Answered:\n${answered}` : "No answers yet. First round.",
       ].join("\n"),
+      { issueId: issueId, stage: "grill" },
     );
     const outcome = grillRoundOutcome(result.done, result.tickets.length);
     switch (outcome) {

@@ -29,7 +29,9 @@ export type CycleStatus = "planned" | "active" | "closed";
 
 export type JobStatus = "running" | "failed" | "stale";
 
-export const STALE_JOB_MS = 8 * 60 * 1000;
+export const STALE_JOB_MS = 10 * 60 * 1000;
+
+export const MAX_ATTEMPTS = Number(process.env.FOUNDRY_MAX_ATTEMPTS ?? 3);
 
 export const ARTIFACT_KIND = {
   research: "research_brief",
@@ -46,6 +48,15 @@ export const ARTIFACT_KIND = {
 } as const;
 
 export type ArtifactKind = (typeof ARTIFACT_KIND)[keyof typeof ARTIFACT_KIND];
+
+export type ExecuteResult = {
+  prUrl: string;
+  branchName: string;
+  commitMessage: string;
+  diff: string;
+  testResults: string;
+  filesChanged: string[];
+};
 
 export type Project = {
   id: string;
@@ -110,6 +121,9 @@ export type IssueJob = {
   error: string | null;
   startedAt: string;
   heartbeatAt: string;
+  attempts: number;
+  nextRetryAt: string | null;
+  retryable: boolean;
 };
 
 export type IssueArtifact = {
