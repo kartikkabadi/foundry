@@ -1,8 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { Client } from "eve/client";
 import { z } from "zod";
-import { eveHost } from "./eve-host";
+import { runStructured } from "./eve-session";
 import { appendEvent } from "./log";
 import {
   clearJob,
@@ -92,22 +91,10 @@ export async function runResearch(issueId: string): Promise<void> {
 }
 
 async function requestBrief(issue: Issue): Promise<ResearchBrief> {
-  const host = eveHost();
-  const health = await fetch(`${host}/eve/v1/health`);
-  if (!health.ok) throw new Error("Foundry worker is not reachable");
-  const client = new Client({ host });
-  const { response } = await client.sessions.create<ResearchBrief>({
-    message: buildPrompt(issue),
-    outputSchema: researchBriefSchema,
-    signal: AbortSignal.timeout(180_000),
+  return runStructured(researchBriefSchema, buildPrompt(issue), {
+    issueId: issue.id,
+    stage: "research",
   });
-  const result = await response.result();
-  if (result.data) return researchBriefSchema.parse(result.data);
-  if (result.message) {
-    const parsed = parseResearchBrief(result.message);
-    if (parsed) return parsed;
-  }
-  throw new Error("Research finished without a brief");
 }
 
 function buildPrompt(issue: Issue): string {

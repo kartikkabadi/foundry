@@ -22,8 +22,6 @@ const inflight = (globalThis as typeof globalThis & {
   __foundryWalk?: Map<string, Promise<void>>;
 }).__foundryWalk ??= new Map();
 
-const WALK_TIMEOUT_MS = 300_000;
-
 const WORKER_STAGES: StageId[] = [
   "improve",
   "plan_pack",
@@ -74,7 +72,7 @@ export async function runWalkStage(issueId: string): Promise<void> {
         spec ? `Spec: ${spec.body}` : "No spec stored.",
         `Write the ${stage} artifact.`,
       ].join("\n"),
-      WALK_TIMEOUT_MS,
+      { issueId: issueId, stage },
     );
     saveArtifact({
       issueId,

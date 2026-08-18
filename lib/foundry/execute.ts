@@ -17,8 +17,6 @@ import {
 } from "./store";
 import { ARTIFACT_KIND, type ExecuteResult, type Issue, type StageId } from "./types";
 
-export const EXECUTE_TIMEOUT_MS = 420_000;
-
 const executeSchema = z.object({
   files: z.array(
     z.object({
@@ -202,7 +200,7 @@ async function generateCode(
       "Repository context:",
       repoContext,
     ].join("\n"),
-    EXECUTE_TIMEOUT_MS,
+    { issueId: issue.id, stage: "execute" },
   );
 }
 
