@@ -1,6 +1,7 @@
 import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
+import { parseExecuteArtifact } from "./execute";
 import { appendEvent } from "./log";
 import {
   clearJob,
@@ -10,13 +11,15 @@ import {
   saveArtifact,
   tryClaimJob,
 } from "./store";
-import { artifactKindFor, type StageId } from "./types";
+import { ARTIFACT_KIND, artifactKindFor, type StageId } from "./types";
 
 const walkDocSchema = z.object({
   title: z.string(),
   body: z.string(),
   nextActions: z.array(z.string()),
 });
+
+const EVIDENCE_BUILD_FIELD_CHAR_LIMIT = 8000;
 
 const inflight = (globalThis as typeof globalThis & {
   __foundryWalk?: Map<string, Promise<void>>;
@@ -61,17 +64,40 @@ export async function runWalkStage(issueId: string): Promise<void> {
   appendEvent(issueId, `${stage}.started`, {});
   try {
     const spec = getArtifact(issueId, "spec_doc");
+
+    const promptLines = [
+      `You are the ${stage} stage of a HITL software factory. Do not write application code.`,
+      "Produce a document the operator can read and accept.",
+      `Idea: ${loaded.issue.idea}`,
+      `Target: ${loaded.issue.targetUrl}`,
+      `Size: ${loaded.issue.size}`,
+      spec ? `Spec: ${spec.body}` : "No spec stored.",
+    ];
+
+    if (stage === "evidence") {
+      const buildArtifact = getArtifact(issueId, ARTIFACT_KIND.execute);
+      const build = buildArtifact ? parseExecuteArtifact(buildArtifact.body) : null;
+      const buildOutput =
+        build === null
+          ? "Build output:\nNo build artifact available — evidence is reviewing from the spec only."
+          : [
+              "Build output:",
+              `Build PR: ${build.prUrl}`,
+              `Diff: ${capField(build.diff)}`,
+              `Test results: ${capField(build.testResults)}`,
+              `Files changed: ${build.filesChanged.join("\n")}`,
+            ].join("\n");
+      promptLines.push(
+        "Review the Build output below as the primary material and verify it against the Spec. If the Build output says no build artifact is available, review from the spec only.",
+        buildOutput,
+      );
+    }
+
+    promptLines.push(`Write the ${stage} artifact.`);
+
     const doc = await runStructured(
       walkDocSchema,
-      [
-        `You are the ${stage} stage of a HITL software factory. Do not write application code.`,
-        "Produce a document the operator can read and accept.",
-        `Idea: ${loaded.issue.idea}`,
-        `Target: ${loaded.issue.targetUrl}`,
-        `Size: ${loaded.issue.size}`,
-        spec ? `Spec: ${spec.body}` : "No spec stored.",
-        `Write the ${stage} artifact.`,
-      ].join("\n"),
+      promptLines.join("\n"),
       { issueId: issueId, stage },
     );
     saveArtifact({
@@ -87,6 +113,11 @@ export async function runWalkStage(issueId: string): Promise<void> {
     failJob(issueId, stage, message);
     appendEvent(issueId, `${stage}.failed`, { error: message });
   }
+}
+
+function capField(value: string): string {
+  if (value.length <= EVIDENCE_BUILD_FIELD_CHAR_LIMIT) return value;
+  return `${value.slice(0, EVIDENCE_BUILD_FIELD_CHAR_LIMIT)}…(truncated)`;
 }
 
 export function parseWalkDoc(body: string): z.infer<typeof walkDocSchema> | null {
