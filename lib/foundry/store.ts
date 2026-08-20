@@ -107,6 +107,7 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issue_jobs", "attempts", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn(conn, "issue_jobs", "next_retry_at", "TEXT");
   ensureColumn(conn, "issue_jobs", "retryable", "INTEGER NOT NULL DEFAULT 0");
+  conn.exec("CREATE INDEX IF NOT EXISTS idx_decision_tickets_issue_id ON decision_tickets(issue_id)");
 }
 
 function backfillProjects(conn: DatabaseSync): void {
@@ -283,7 +284,7 @@ export function createCycle(input: { name: string; startsAt: string; endsAt: str
     .prepare(
       "INSERT INTO cycles (id, name, starts_at, ends_at, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
-    .run(id, input.name, input.startsAt, input.endsAt, status, now);
+    .run(id, input.name, input.starts_at, input.ends_at, status, now);
   const created = getCycle(id);
   if (!created) throw new Error("cycle missing after insert");
   return created;
