@@ -1,6 +1,6 @@
-import { grillRoundOutcome } from "../lib/foundry/grill.ts";
-import { appendEvent, readEvents } from "../lib/foundry/log.ts";
-import { createIssue } from "../lib/foundry/store.ts";
+import { grillRoundOutcome } from "../lib/foundry/grill";
+import { appendEvent, readEvents } from "../lib/foundry/log";
+import { createIssue } from "../lib/foundry/store";
 
 process.env.FOUNDRY_DATA = "/tmp/foundry-grill-auto";
 
