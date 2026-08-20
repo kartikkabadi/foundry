@@ -1,5 +1,5 @@
-import { tickOneshot } from "../lib/foundry/oneshot.ts";
-import { readEvents } from "../lib/foundry/log.ts";
+import { tickOneshot } from "../lib/foundry/oneshot";
+import { readEvents } from "../lib/foundry/log";
 import {
   completeActiveStage,
   createIssue,
@@ -8,7 +8,7 @@ import {
   saveDecisionTickets,
   setWalkHold,
   unansweredTicketCount,
-} from "../lib/foundry/store.ts";
+} from "../lib/foundry/store";
 
 process.env.FOUNDRY_DATA = `/tmp/foundry-oneshot-${process.pid}`;
 

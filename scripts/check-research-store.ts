@@ -1,5 +1,5 @@
-import { createIssue, getArtifact, getIssue, saveArtifact } from "../lib/foundry/store.ts";
-import { parseResearchBrief } from "../lib/foundry/research.ts";
+import { createIssue, getArtifact, getIssue, saveArtifact } from "../lib/foundry/store";
+import { parseResearchBrief } from "../lib/foundry/research";
 
 process.env.FOUNDRY_DATA = "/tmp/foundry-research-store";
 
