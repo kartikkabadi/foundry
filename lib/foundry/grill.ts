@@ -1,6 +1,7 @@
 import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import { parseResearchBrief } from "./research";
 import { GRILL_EMPTY_NOT_DONE } from "./retry";
@@ -23,9 +24,7 @@ import { ARTIFACT_KIND } from "./types";
 
 export { GRILL_EMPTY_NOT_DONE };
 
-export const GRILL_INFLIGHT = (globalThis as typeof globalThis & {
-  __foundryGrill?: Map<string, Promise<void>>;
-}).__foundryGrill ??= new Map();
+export const GRILL_INFLIGHT = createInflightMap("grill", "__foundryGrill");
 
 export const GRILL_SUMMARY_KIND = ARTIFACT_KIND.grillSummary;
 

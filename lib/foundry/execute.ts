@@ -4,6 +4,7 @@ import { execFileSync, execSync } from "node:child_process";
 import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import { parseResearchBrief } from "./research";
 import { parseSpec } from "./spec";
@@ -41,9 +42,7 @@ const executeResultSchema = z.object({
 
 type ExecuteResultShape = z.infer<typeof executeResultSchema>;
 
-const inflight = (globalThis as typeof globalThis & {
-  __foundryExecute?: Map<string, Promise<void>>;
-}).__foundryExecute ??= new Map();
+const inflight = createInflightMap("execute", "__foundryExecute");
 
 export function executeInflight(issueId: string): boolean {
   return inflight.has(issueId);

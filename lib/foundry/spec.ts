@@ -1,6 +1,7 @@
 import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import { parseResearchBrief } from "./research";
 import {
@@ -21,9 +22,7 @@ const specSchema = z.object({
   acceptance: z.array(z.string()),
 });
 
-const inflight = (globalThis as typeof globalThis & {
-  __foundrySpec?: Map<string, Promise<void>>;
-}).__foundrySpec ??= new Map();
+const inflight = createInflightMap("spec", "__foundrySpec");
 
 export function specInflight(issueId: string): boolean {
   return inflight.has(issueId);
