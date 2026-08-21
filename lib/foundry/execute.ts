@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { z } from "zod";
 import "eve/client";
@@ -63,13 +63,17 @@ export async function runExecute(issueId: string): Promise<void> {
   if (getArtifact(issueId, ARTIFACT_KIND.execute)) return;
   if (!tryClaimJob(issueId, "execute")) return;
   appendEvent(issueId, "execute.started", {});
+  // Hoisted out of the try so the finally teardown can reach it on every exit.
+  // Stays null until the workDir is actually created below, so a failure before
+  // creation (e.g. a missing spec) does not trigger a spurious removal.
+  let workDir: string | null = null;
   try {
     const specArtifact = getArtifact(issueId, ARTIFACT_KIND.spec);
     const spec = specArtifact ? parseSpec(specArtifact.body) : null;
     if (!spec) {
       throw new Error("No spec artifact found for execute stage");
     }
-    const workDir = join(process.cwd(), "data", "worktrees", issueId);
+    workDir = join(process.cwd(), "data", "worktrees", issueId);
     if (existsSync(workDir)) {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -112,6 +116,77 @@ export async function runExecute(issueId: string): Promise<void> {
     const message = error instanceof Error ? error.message : "Execute failed";
     failJob(issueId, "execute", message);
     appendEvent(issueId, "execute.failed", { error: message });
+  } finally {
+    // Interim teardown: always remove the workDir on both success and failure.
+    // This stops the normal-completion and thrown-error clone leak only. It is
+    // interim architecture — the proper owner is end-of-Walk hygiene (Follow-up
+    // A). A finally cannot run on a killed worker (Follow-up C) and does not
+    // touch already-orphaned clones (Follow-up B).
+    if (workDir !== null) {
+      removeWorkDir(issueId, workDir);
+    }
+  }
+}
+
+/**
+ * Sanctioned root for execute worktrees. Every workDir MUST resolve strictly
+ * under here; the teardown guard refuses to touch anything outside it.
+ */
+function worktreesRoot(): string {
+  return resolve(process.cwd(), "data", "worktrees");
+}
+
+/**
+ * Path-containment guard for workDir teardown. Returns true only when `workDir`
+ * resolves to a strict descendant of the sanctioned worktrees root and is
+ * neither the root itself, a filesystem root, nor empty. This is a lexical
+ * (no-symlink-follow) check; it complements per-issue path uniqueness — it does
+ * not replace it — and prevents a misconfigured rm from escaping the sandbox
+ * tree.
+ */
+export function isSandboxedWorkDir(workDir: string, root: string = worktreesRoot()): boolean {
+  if (!workDir) return false;
+  const target = resolve(workDir);
+  if (!target) return false;
+  const resolvedRoot = resolve(root);
+  if (target === resolvedRoot) return false; // never rm the root itself
+  if (target === dirname(target)) return false; // never rm a filesystem root
+  const rel = relative(resolvedRoot, target);
+  if (rel === "") return false; // == root (already rejected above)
+  if (rel.startsWith("..")) return false; // escapes the root upward
+  if (isAbsolute(rel)) return false; // unrelated absolute path (e.g. other drive)
+  return true;
+}
+
+/**
+ * Interim workDir teardown. Removes `workDir` when it is a sanctioned, contained
+ * path that currently exists. Removal errors are swallowed: exactly one warning
+ * Event is logged and the original run result/error always survives unchanged.
+ * On a containment-guard refusal the rm is skipped and one warning Event is
+ * logged instead.
+ */
+export function removeWorkDir(issueId: string, workDir: string): void {
+  if (!isSandboxedWorkDir(workDir)) {
+    appendEvent(issueId, "execute.workdir_cleanup_refused", {
+      severity: "warning",
+      workDir,
+      cause: "path is not strictly under the sanctioned worktrees root",
+    });
+    return;
+  }
+  if (!existsSync(workDir)) {
+    return;
+  }
+  try {
+    rmSync(workDir, { recursive: true, force: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    appendEvent(issueId, "execute.workdir_cleanup_failed", {
+      severity: "warning",
+      workDir,
+      error: message,
+    });
+    // Swallow: must not mask the original success result or error.
   }
 }
 
