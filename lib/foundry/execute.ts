@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
@@ -169,7 +169,7 @@ function createPR(
 
 function getDiff(workDir: string): string {
   try {
-    return execSync("git diff HEAD~1", { cwd: workDir, encoding: "utf8" });
+    return execFileSync("git", ["diff", "HEAD~1"], { cwd: workDir, encoding: "utf8" });
   } catch {
     return "Failed to get diff";
   }
@@ -217,7 +217,7 @@ function gatherRepoContext(workDir: string): string {
       }
     }
   }
-  const fileList = execSync("git ls-files", { cwd: workDir, encoding: "utf8" })
+  const fileList = execFileSync("git", ["ls-files"], { cwd: workDir, encoding: "utf8" })
     .trim()
     .split("\n")
     .filter(Boolean)
