@@ -1,4 +1,5 @@
 import { grillInflight, saveGrillSummary, startGrill } from "./grill";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import { researchInflight, startResearch } from "./research";
 import { specInflight, startSpec } from "./spec";
@@ -37,9 +38,7 @@ export type OneshotTick =
   | { action: "auto_advance"; stage: StageId }
   | { action: "stop"; reason: string };
 
-const inflight = (globalThis as typeof globalThis & {
-  __foundryOneshot?: Map<string, Promise<void>>;
-}).__foundryOneshot ??= new Map();
+const inflight = createInflightMap("oneshot", "__foundryOneshot");
 
 export function startOneshotWalk(issueId: string): void {
   if (inflight.has(issueId)) return;

@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { z } from "zod";
 import { runStructured } from "./eve-session";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import {
   clearJob,
@@ -47,9 +48,7 @@ export function researchState(issueId: string): {
   };
 }
 
-const inflight = (globalThis as typeof globalThis & {
-  __foundryResearch?: Map<string, Promise<void>>;
-}).__foundryResearch ??= new Map();
+const inflight = createInflightMap("research", "__foundryResearch");
 
 export function researchInflight(issueId: string): boolean {
   return inflight.has(issueId);

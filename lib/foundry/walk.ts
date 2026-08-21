@@ -2,6 +2,7 @@ import { z } from "zod";
 import "eve/client";
 import { runStructured } from "./eve-session";
 import { parseExecuteArtifact } from "./execute";
+import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import {
   clearJob,
@@ -21,9 +22,7 @@ const walkDocSchema = z.object({
 
 const EVIDENCE_BUILD_FIELD_CHAR_LIMIT = 8000;
 
-const inflight = (globalThis as typeof globalThis & {
-  __foundryWalk?: Map<string, Promise<void>>;
-}).__foundryWalk ??= new Map();
+const inflight = createInflightMap("walk", "__foundryWalk");
 
 const WORKER_STAGES: StageId[] = [
   "improve",
