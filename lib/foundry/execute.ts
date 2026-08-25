@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { z } from "zod";
@@ -8,11 +8,13 @@ import { createInflightMap } from "./inflight";
 import { appendEvent } from "./log";
 import { parseResearchBrief } from "./research";
 import { parseSpec } from "./spec";
+import { runOrchestratedExecute, type ExecuteRuntime } from "./orchestration-runtime";
 import {
   clearJob,
   failJob,
   getArtifact,
   getIssue,
+  getJob,
   saveArtifact,
   tryClaimJob,
 } from "./store";
@@ -56,7 +58,10 @@ export function startExecute(issueId: string): void {
   inflight.set(issueId, work);
 }
 
-export async function runExecute(issueId: string): Promise<void> {
+export async function runExecute(
+  issueId: string,
+  orchestratedRuntime: ExecuteRuntime = runOrchestratedExecute,
+): Promise<void> {
   const loaded = getIssue(issueId);
   if (!loaded || loaded.issue.currentStage !== "execute") return;
   if (getArtifact(issueId, ARTIFACT_KIND.execute)) return;
@@ -72,6 +77,42 @@ export async function runExecute(issueId: string): Promise<void> {
     if (!spec) {
       throw new Error("No spec artifact found for execute stage");
     }
+    if (process.env.FOUNDRY_MULTIAGENT === "1") {
+      const result = await orchestratedRuntime({ issue: loaded.issue, spec, claims: ["repository"] });
+      // Waiting means the orchestration run is parked until it can progress
+      // (e.g. a retry backoff has not elapsed). Release the legacy claim so
+      // the outer loop re-invokes and the durable run is resumed later; the
+      // orchestration run itself is the source of truth for when.
+      if (result.status === "waiting") {
+        clearJob(issueId, "execute");
+        appendEvent(issueId, "execute.waiting", { reason: result.reason });
+        return;
+      }
+      if (result.status === "failed" || result.status === "exhausted") {
+        throw new Error(
+          result.status === "failed"
+            ? result.error
+            : `Orchestrated execute exhausted after ${result.ticks} ticks`,
+        );
+      }
+      // A terminal result must never leave the outer Foundry job claimed unless
+      // the runtime actually settled it. Reconcile against store state, not the
+      // runtime's word: an execute artifact is the only ground truth that the
+      // run completed, so clear the claim only when one exists. Without an
+      // artifact the run cannot count as done — fail closed rather than leave a
+      // silently claimed job (a skipped/odd runtime result lands here too).
+      if (getArtifact(issueId, ARTIFACT_KIND.execute)) {
+        clearJob(issueId, "execute");
+        return;
+      }
+      const job = getJob(issueId, "execute");
+      if (job !== null && job.status === "running") {
+        throw new Error(
+          "Orchestrated execute reported done without an execute artifact while the job was still claimed; failing closed so the stage can retry",
+        );
+      }
+      return;
+    }
     workDir = join(process.cwd(), "data", "worktrees", issueId);
     if (existsSync(workDir)) {
       rmSync(workDir, { recursive: true, force: true });
@@ -85,15 +126,13 @@ export async function runExecute(issueId: string): Promise<void> {
     execFileSync("git", ["add", "."], { cwd: workDir });
     execFileSync("git", ["commit", "-m", result.commitMessage], { cwd: workDir });
     const testResults = runTests(workDir);
-    const prResult = createPR(
-      workDir,
-      branchName,
-      result.prTitle,
-      result.prBody,
-    );
     const diff = getDiff(workDir);
+    // Local-only result generation: no git push, no gh, no remote mutation.
+    // The branch/commit/diff stay local to the worktree clone. `prUrl` is
+    // retained as an empty string so the shared ExecuteResult schema and the
+    // evidence stage reader in walk.ts keep working unchanged.
     const executeResult: ExecuteResult = {
-      prUrl: prResult.url,
+      prUrl: "",
       branchName,
       commitMessage: result.commitMessage,
       diff,
@@ -108,7 +147,7 @@ export async function runExecute(issueId: string): Promise<void> {
     });
     clearJob(issueId, "execute");
     appendEvent(issueId, "execute.completed", {
-      prUrl: prResult.url,
+      prUrl: "",
       branchName,
     });
   } catch (error) {
@@ -195,11 +234,64 @@ function cloneRepo(targetUrl: string, workDir: string): void {
 
 function writeFiles(workDir: string, files: Array<{ path: string; content: string }>): void {
   for (const file of files) {
-    const filePath = join(workDir, file.path);
-    const dir = filePath.substring(0, filePath.lastIndexOf("/"));
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(filePath, file.content, "utf8");
+    writeFileSafe(workDir, file.path, file.content);
   }
+}
+
+/**
+ * Smallest safe model-output file writer. A model-generated `path` may contain
+ * `..`, a leading slash, or a symlinked parent that redirects a write outside
+ * the worktree. Every file is validated before any mkdir/write:
+ *   1. absolute paths and raw `..` parent segments are rejected outright;
+ *   2. the normalized target must resolve to a lexical strict descendant of
+ *      `workDir` (require lexical containment);
+ *   3. the physical worktree root and the nearest existing destination parent
+ *      are realpath-resolved, so a symlinked ancestor cannot smuggle the write
+ *      out of the sandbox (reject symlink escape).
+ */
+export function writeFileSafe(workDir: string, filePath: string, content: string): void {
+  if (isAbsolute(filePath)) {
+    throw new Error(`Refusing to write absolute path: ${filePath}`);
+  }
+  if (filePath.split("/").includes("..")) {
+    throw new Error(`Refusing to write path with parent traversal: ${filePath}`);
+  }
+  const root = resolve(workDir);
+  const target = resolve(root, filePath);
+  if (!isStrictlyInside(target, root)) {
+    throw new Error(`Refusing to write outside the worktree: ${filePath}`);
+  }
+  const physicalRoot = realpathSync(root);
+  const existingParent = nearestExistingParent(dirname(target));
+  const physicalParent = realpathSync(existingParent);
+  if (!isInsideOrEqual(physicalParent, physicalRoot)) {
+    throw new Error(`Refusing to write through a symlink escaping the worktree: ${filePath}`);
+  }
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content, "utf8");
+}
+
+/** Deepest existing ancestor of `dir` (or `dir` itself when it exists). */
+function nearestExistingParent(dir: string): string {
+  let current = dir;
+  for (;;) {
+    if (existsSync(current)) return current;
+    const parent = dirname(current);
+    if (parent === current) return current; // hit a filesystem root
+    current = parent;
+  }
+}
+
+/** True when `inner` resolves to a strict lexical descendant of `outer`. */
+function isStrictlyInside(inner: string, outer: string): boolean {
+  const rel = relative(outer, inner);
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+/** True when `inner` resolves to `outer` itself or a descendant of it. */
+function isInsideOrEqual(inner: string, outer: string): boolean {
+  const rel = relative(outer, inner);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 function runTests(workDir: string): string {
@@ -217,27 +309,6 @@ function runTests(workDir: string): string {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Test execution failed";
     return `Tests failed: ${message}`;
-  }
-}
-
-function createPR(
-  workDir: string,
-  branchName: string,
-  prTitle: string,
-  prBody: string,
-): { url: string } {
-  try {
-    execFileSync("git", ["push", "origin", branchName], { cwd: workDir, stdio: "pipe" });
-    const result = execFileSync(
-      "gh",
-      ["pr", "create", "--title", prTitle, "--body", prBody, "--base", "main", "--head", branchName],
-      { cwd: workDir, encoding: "utf8", stdio: "pipe" },
-    );
-    const prUrl = result.trim();
-    return { url: prUrl };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "PR creation failed";
-    throw new Error(`Failed to create PR: ${message}`);
   }
 }
 
