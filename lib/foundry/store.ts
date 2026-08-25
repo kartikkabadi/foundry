@@ -1,6 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { appendEvent, type EventActor } from "./log";
+import type { LearningRecord, LearningStoreAdapter } from "./learning";
+import {
+  applyAutomationControlPatch,
+  AutomationControlStaleVersionError,
+  AutomationControlValidationError,
+  defaultAutomationControl,
+  type AutomationControl,
+  type AutomationControlAdapter,
+  type AutomationControlPatch,
+} from "./automation-control";
 import { dbPath } from "./paths";
 import {
   STAGES,
@@ -27,6 +37,81 @@ import {
 } from "./types";
 
 let db: DatabaseSync | null = null;
+
+const ORCHESTRATION_SCHEMA = `
+    CREATE TABLE IF NOT EXISTS orchestration_runs (
+      id TEXT PRIMARY KEY,
+      issue_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('active','succeeded','failed','cancelled')),
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS orchestration_tasks (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('blocked','ready','leased','running','verifying','succeeded','failed','cancelled')),
+      deps TEXT NOT NULL DEFAULT '[]',
+      host TEXT,
+      isolation_kind TEXT,
+      isolation_ref TEXT,
+      resources TEXT NOT NULL,
+      model TEXT NOT NULL,
+      route TEXT NOT NULL,
+      claims TEXT NOT NULL DEFAULT '[]',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 3,
+      retryable INTEGER NOT NULL DEFAULT 0,
+      next_retry_at TEXT,
+      error TEXT,
+      lease_id TEXT,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      started_at TEXT,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_orch_tasks_run ON orchestration_tasks (run_id);
+    CREATE INDEX IF NOT EXISTS idx_orch_tasks_state ON orchestration_tasks (state);
+    CREATE TABLE IF NOT EXISTS orchestration_attempts (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      idx INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('running','succeeded','failed','cancelled')),
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_orch_attempts_task ON orchestration_attempts (task_id);
+    CREATE TABLE IF NOT EXISTS orchestration_leases (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      host TEXT NOT NULL,
+      owner TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      released_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_orch_leases_task ON orchestration_leases (task_id);
+    CREATE TABLE IF NOT EXISTS orchestration_claims (
+      task_id TEXT NOT NULL,
+      path TEXT NOT NULL,
+      PRIMARY KEY (task_id, path)
+    );
+    CREATE INDEX IF NOT EXISTS idx_orch_claims_path ON orchestration_claims (path);
+    CREATE TABLE IF NOT EXISTS orchestration_artifacts (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      path TEXT,
+      body TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_orch_artifacts_task ON orchestration_artifacts (task_id);
+`;
 
 const SCHEMA = `
     CREATE TABLE IF NOT EXISTS issues (
@@ -93,9 +178,31 @@ const SCHEMA = `
       name TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    ${ORCHESTRATION_SCHEMA}
+    CREATE TABLE IF NOT EXISTS learning_records (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      key TEXT NOT NULL,
+      issue TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      timestamp TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS automation_control (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      enabled INTEGER NOT NULL DEFAULT 0,
+      operator_hold INTEGER NOT NULL DEFAULT 0,
+      "limit" INTEGER NOT NULL DEFAULT 5,
+      max_iterations INTEGER NOT NULL DEFAULT 10,
+      max_cost_usd REAL NOT NULL DEFAULT 1,
+      per_candidate_ceiling_usd REAL NOT NULL DEFAULT 0.5,
+      paid_authorization INTEGER NOT NULL DEFAULT 0,
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL
+    );
 `;
 
 function migrate(conn: DatabaseSync): void {
+  conn.exec(ORCHESTRATION_SCHEMA);
   ensureColumn(conn, "issues", "project_id", "TEXT");
   ensureColumn(conn, "issues", "cycle_id", "TEXT");
   ensureColumn(conn, "issues", "module_id", "TEXT");
@@ -107,6 +214,8 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issue_jobs", "attempts", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn(conn, "issue_jobs", "next_retry_at", "TEXT");
   ensureColumn(conn, "issue_jobs", "retryable", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(conn, "orchestration_tasks", "retryable", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(conn, "orchestration_tasks", "next_retry_at", "TEXT");
 }
 
 function backfillProjects(conn: DatabaseSync): void {
@@ -131,6 +240,219 @@ function database(): DatabaseSync {
     migrate(db);
   }
   return db;
+}
+
+/**
+ * Shared SQLite connection for the orchestration store. The orchestration
+ * tables live in the same database (and schema) as every other Foundry table;
+ * there is no second database. Tests may drive the same connection through
+ * the existing FOUNDRY_DATA control.
+ */
+export function orchestrationConnection(): DatabaseSync {
+  return database();
+}
+
+function isRecordObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireRecordString(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`invalid learning record: ${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+/** Validates a parsed JSON payload back into a LearningRecord without any casts. */
+function parseLearningRecord(value: unknown): LearningRecord {
+  if (!isRecordObject(value)) {
+    throw new Error("invalid learning record: payload is not an object");
+  }
+  if (value.kind === "lesson") {
+    const id = requireRecordString(value.id, "lesson id");
+    const key = requireRecordString(value.key, "lesson key");
+    const taskId = requireRecordString(value.taskId, "taskId");
+    const issueId = requireRecordString(value.issueId, "issueId");
+    const stage = value.stage;
+    if (stage !== "execute") throw new Error("invalid learning record: lesson stage must be 'execute'");
+    const outcome = value.outcome;
+    if (outcome !== "succeeded" && outcome !== "failed") {
+      throw new Error("invalid learning record: lesson outcome must be terminal");
+    }
+    const pattern = requireRecordString(value.pattern, "pattern");
+    const retentionRule = requireRecordString(value.retentionRule, "retentionRule");
+    const refs = value.refs;
+    if (!Array.isArray(refs) || !refs.every((ref) => typeof ref === "string")) {
+      throw new Error("invalid learning record: lesson refs must be an array of strings");
+    }
+    const rawAuthor = value.author;
+    if (rawAuthor !== undefined && rawAuthor !== null && typeof rawAuthor !== "string") {
+      throw new Error("invalid learning record: lesson author must be a string or null");
+    }
+    const proposedAt = requireRecordString(value.proposedAt, "proposedAt");
+    return {
+      kind: "lesson",
+      id,
+      key,
+      taskId,
+      issueId,
+      stage,
+      outcome,
+      pattern,
+      retentionRule,
+      refs,
+      author: typeof rawAuthor === "string" ? rawAuthor : null,
+      proposedAt,
+    };
+  }
+  if (value.kind === "promotion") {
+    const id = requireRecordString(value.id, "promotion id");
+    const key = requireRecordString(value.key, "promotion key");
+    const lessonId = requireRecordString(value.lessonId, "lessonId");
+    const issueId = requireRecordString(value.issueId, "issueId");
+    const reviewer = requireRecordString(value.reviewer, "reviewer");
+    const approvedAt = requireRecordString(value.approvedAt, "approvedAt");
+    return { kind: "promotion", id, key, lessonId, issueId, reviewer, approvedAt };
+  }
+  throw new Error(`invalid learning record: unknown kind ${String(value.kind)}`);
+}
+
+/**
+ * Durable learning adapter over the shared SQLite database. Rows live in the
+ * `learning_records` table in the same schema and connection as every other
+ * Foundry table, so a fresh adapter instance reads the same records and a
+ * replayed append (same unique id) is a no-op via INSERT OR IGNORE. Payloads
+ * are stored as JSON and validated back into LearningRecord on load — never
+ * cast, never `any`.
+ */
+export function createLearningStore(): LearningStoreAdapter {
+  const conn = database();
+  const select = conn.prepare(
+    "SELECT payload FROM learning_records ORDER BY timestamp ASC, id ASC",
+  );
+  const insert = conn.prepare(
+    "INSERT OR IGNORE INTO learning_records (id, kind, key, issue, payload, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  return {
+    load: () => {
+      const rows = select.all() as Record<string, unknown>[];
+      return rows.map((row) => parseLearningRecord(JSON.parse(String(row.payload)) as unknown));
+    },
+    append: (record) => {
+      insert.run(
+        record.id,
+        record.kind,
+        record.key,
+        record.issueId,
+        JSON.stringify(record),
+        record.kind === "lesson" ? record.proposedAt : record.approvedAt,
+      );
+    },
+  };
+}
+
+const CONTROL_UPDATE_SQL = `
+  UPDATE automation_control SET
+    enabled = ?, operator_hold = ?, "limit" = ?, max_iterations = ?,
+    max_cost_usd = ?, per_candidate_ceiling_usd = ?,
+    paid_authorization = ?, version = ?, updated_at = ?
+  WHERE id = 1 AND version = ?
+`;
+
+/**
+ * Durable automation control over the shared SQLite database. A single
+ * singleton row (`id = 1`) holds the operator control record for the
+ * autonomous driver; a fresh adapter reads the same row from disk. Every
+ * mutation is an integer-version compare-and-set, so a stale write (one based
+ * on an outdated snapshot) fails instead of clobbering newer control state.
+ * The adapter only persists control state — it never runs a pass, never calls
+ * `planAutomation`, and never starts work.
+ */
+export function createAutomationControlStore(
+  options: { now?: () => string } = {},
+): AutomationControlAdapter {
+  const conn = database();
+  const stamp = options.now ?? (() => new Date().toISOString());
+  const ensureRow = conn.prepare(
+    `INSERT OR IGNORE INTO automation_control (
+      id, enabled, operator_hold, "limit", max_iterations, max_cost_usd,
+      per_candidate_ceiling_usd, paid_authorization, version, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const select = conn.prepare(
+    `SELECT enabled, operator_hold, "limit", max_iterations, max_cost_usd,
+            per_candidate_ceiling_usd, paid_authorization, version, updated_at
+     FROM automation_control WHERE id = 1`,
+  );
+  const update = conn.prepare(CONTROL_UPDATE_SQL);
+
+  function mapControl(row: Record<string, unknown>): AutomationControl {
+    return {
+      enabled: Boolean(row.enabled),
+      operatorHold: Boolean(row.operator_hold),
+      limit: Number(row.limit),
+      maxIterations: Number(row.max_iterations),
+      maxCostUsd: Number(row.max_cost_usd),
+      perCandidateCeilingUsd: Number(row.per_candidate_ceiling_usd),
+      paidAuthorization: Boolean(row.paid_authorization),
+      version: Number(row.version),
+      updatedAt: String(row.updated_at),
+    };
+  }
+
+  function ensureRowExists(): void {
+    const defaults = defaultAutomationControl(stamp());
+    ensureRow.run(
+      1,
+      defaults.enabled ? 1 : 0,
+      defaults.operatorHold ? 1 : 0,
+      defaults.limit,
+      defaults.maxIterations,
+      defaults.maxCostUsd,
+      defaults.perCandidateCeilingUsd,
+      defaults.paidAuthorization ? 1 : 0,
+      defaults.version,
+      defaults.updatedAt,
+    );
+  }
+
+  function requireRow(): AutomationControl {
+    ensureRowExists();
+    const row = select.get() as Record<string, unknown> | undefined;
+    if (row === undefined) {
+      throw new Error("automation control: singleton row missing after ensure");
+    }
+    return mapControl(row);
+  }
+
+  return {
+    get: () => requireRow(),
+    update: (patch, expectedVersion) => {
+      if (!Number.isSafeInteger(expectedVersion)) {
+        throw new AutomationControlValidationError(
+          `expectedVersion must be an integer, received ${String(expectedVersion)}`,
+        );
+      }
+      const current = requireRow();
+      const next = applyAutomationControlPatch(current, patch, stamp());
+      const result = update.run(
+        next.enabled ? 1 : 0,
+        next.operatorHold ? 1 : 0,
+        next.limit,
+        next.maxIterations,
+        next.maxCostUsd,
+        next.perCandidateCeilingUsd,
+        next.paidAuthorization ? 1 : 0,
+        next.version,
+        next.updatedAt,
+        expectedVersion,
+      );
+      if (result.changes !== 1) {
+        throw new AutomationControlStaleVersionError(expectedVersion, current.version);
+      }
+      return next;
+    },
+  };
 }
 
 function tableColumns(conn: DatabaseSync, table: string): Set<string> {

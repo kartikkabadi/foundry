@@ -37,6 +37,17 @@ export function Sidebar({ counts }: { counts: NavCounts }) {
             </Link>
           );
         })}
+        <Link
+          className={cn(
+            "flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+            pathname === "/automation" || pathname.startsWith("/automation/")
+              ? "bg-accent text-foreground"
+              : "text-foreground",
+          )}
+          href="/automation"
+        >
+          Automation
+        </Link>
       </nav>
     </aside>
   );

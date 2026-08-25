@@ -81,7 +81,9 @@ export async function runWalkStage(issueId: string): Promise<void> {
           ? "Build output:\nNo build artifact available — evidence is reviewing from the spec only."
           : [
               "Build output:",
-              `Build PR: ${build.prUrl}`,
+              build.prUrl
+                ? `Build PR: ${build.prUrl}`
+                : `Local build branch: ${build.branchName}`,
               `Diff: ${capField(build.diff)}`,
               `Test results: ${capField(build.testResults)}`,
               `Files changed: ${build.filesChanged.join("\n")}`,

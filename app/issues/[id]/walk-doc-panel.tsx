@@ -39,18 +39,27 @@ export function WalkDocPanel({
   if (stage === "execute" && artifact) {
     const executeResult = parseExecuteArtifact(artifact.body);
     if (executeResult) {
+      // prUrl is empty for local-only builds (nothing was published). Show that
+      // honestly: no PR link, no "Pull Request Created" claim, just the local
+      // branch/commit that were produced. A real PR link renders only when a
+      // prUrl actually exists.
+      const hasPr = executeResult.prUrl !== "";
       return (
         <div className="flex flex-col gap-6">
-          <h2 className="text-lg font-medium">Pull Request Created</h2>
+          <h2 className="text-lg font-medium">
+            {hasPr ? "Pull Request Created" : "Local Build Ready"}
+          </h2>
           <div className="flex flex-col gap-2">
-            <a
-              href={executeResult.prUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              {executeResult.prUrl}
-            </a>
+            {hasPr && (
+              <a
+                href={executeResult.prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                {executeResult.prUrl}
+              </a>
+            )}
             <p className="text-muted-foreground">Branch: {executeResult.branchName}</p>
             <p className="text-muted-foreground">Commit: {executeResult.commitMessage}</p>
           </div>

@@ -1,6 +1,8 @@
 # Gates: Foundry production-ready HITL factory
 
-Scope: Operator dashboard Kartik can run without confusion; steal IA/layout from all five inspiration products while keeping Foundry’s factory model and dark theme; live E2E on :3100.
+Scope: Operator dashboard Kartik can run without confusion; steal IA/layout from all five inspiration products while keeping Foundry's factory model and dark theme; live E2E on :3100.
+
+Scope (bounded automation slice): a durable operator control surface over a bounded, resumable, lease-fenced automation runtime; local-only execution with no remote publication.
 
 ## Decisions (operator, 2026-08-17)
 
@@ -117,3 +119,65 @@ Scope: Operator dashboard Kartik can run without confusion; steal IA/layout from
   CHECK: node -e "const t=require('fs').readFileSync('app/_components/command-menu.tsx','utf8'); if (!t.includes('CommandInput') || !t.includes('metaKey') || !t.includes('/gates') || !t.includes('/projects')) process.exit(1); console.log('PALETTE_OK');"
   EXPECT: PALETTE_OK
   EVIDENCE: PALETTE_OK
+
+- [x] G23: durable retry decision persists atomically on the task
+  CHECK: npx tsx scripts/check-orchestration.ts --only retry
+  EXPECT: RETRY_DURABLE_OK
+  EVIDENCE: RETRY_DURABLE_OK
+
+- [x] G24: execute-learning adapter harvests and promotes as decisions only
+  CHECK: npx tsx scripts/check-orchestration.ts --only learning
+  EXPECT: EXEC_LEARNING_OK
+  EVIDENCE: EXEC_LEARNING_OK
+
+- [x] G25: recursive improvement loop is pure, bounded, and never self-authorizes
+  CHECK: npx tsx scripts/check-orchestration.ts --only automation
+  EXPECT: IMPROVEMENT_OK
+  EVIDENCE: IMPROVEMENT_OK
+
+- [x] G26: unattended selector is data-only, excludes merge/hygiene, capped at 20
+  CHECK: npx tsx scripts/check-orchestration.ts --only unattended
+  EXPECT: UNATTENDED_OK
+  EVIDENCE: UNATTENDED_OK
+
+- [x] G27: orchestration release contracts pass behaviorally
+  CHECK: node_modules/.bin/tsx scripts/check-orchestration.ts
+  EXPECT: ORCHESTRATION_GATES_OK
+  EVIDENCE: RETRY_DURABLE_OK | EXEC_LEARNING_OK | IMPROVEMENT_OK | UNATTENDED_OK | FENCING_OK | OUTER_RELEASE_OK | LOCAL_EXECUTE_OK | ORCHESTRATION_GATES_OK
+
+- [x] G28: physical claim identities are enforced in the production runtime path
+  CHECK: npm test -- --run tests/orchestration-runtime.test.ts tests/orchestration-execute-driver.test.ts tests/physical-claims.test.ts
+  EXPECT: 3 test files and 49 tests pass
+  EVIDENCE: Test Files 3 passed | Tests 49 passed
+
+- [x] G29: automation control record is durable, operator-owned, and fail-closed
+  CHECK: npm test -- --run tests/automation-control.test.ts
+  EXPECT: control defaults inert until enabled; stale-version CAS and out-of-bounds patches fail closed
+  EVIDENCE: focused automation verification — 67 tests pass (parent-verified)
+
+- [x] G30: automation driver is a bounded one-pass with no duplicate starts
+  CHECK: npm test -- --run tests/automation-driver.test.ts
+  EXPECT: plan is bounded before any effect; duplicate starts rejected; wait/stop audit-only
+  EVIDENCE: focused automation verification — 67 tests pass (parent-verified)
+
+- [x] G31: improvement candidates derive purely from promoted lessons plus explicit proposals
+  CHECK: npm test -- --run tests/improvement-candidates.test.ts
+  EXPECT: each excluded proposal has exactly one reason; approval is never inferred
+  EVIDENCE: focused automation verification — 67 tests pass (parent-verified)
+
+- [x] G32: automation runtime consults durable control and only then runs a bounded pass
+  CHECK: npm test -- --run tests/prove-automation.test.ts
+  EXPECT: disabled or operator-held control returns with no planning and no start effects
+  EVIDENCE: disposable prove-orchestration + prove-automation — 9 tests pass (parent-verified)
+
+- [x] G33: full repository verification stays green with the automation slice
+  CHECK: npm test && npm run typecheck && npm run build
+  EXPECT: full suite, typecheck, and build all pass
+  EVIDENCE: 29 test files / 609 tests pass; typecheck and build pass (parent-verified)
+
+- [x] G34: live dashboard exposes the automation control surface
+  CHECK: live browser on /automation with screenshot
+  EXPECT: /automation loads and exercises disabled → enabled → paused
+  EVIDENCE: browser loaded /automation and exercised disabled→enabled→paused with screenshot (parent-verified)
+
+Automation-slice gate evidence is parent-verified on 2026-08-25: focused 67 tests; full 29 files / 609 tests; typecheck; build; disposable prove-orchestration + prove-automation 9 tests; live browser /automation disabled→enabled→paused with screenshot.

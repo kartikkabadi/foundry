@@ -1,6 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import {
+  AutomationControlStaleVersionError,
+  AutomationControlValidationError,
+  type AutomationControlPatch,
+} from "@/lib/foundry/automation-control";
 import { saveGrillSummary, startGrill } from "@/lib/foundry/grill";
 import { appendEvent } from "@/lib/foundry/log";
 import { startOneshotWalk } from "@/lib/foundry/oneshot";
@@ -13,6 +18,7 @@ import {
   clearJob,
   clearTicketAnswer,
   completeActiveStage,
+  createAutomationControlStore,
   createCycle,
   createIssue,
   createModule,
@@ -299,4 +305,84 @@ export async function retryStageFromWorkersAction(formData: FormData) {
     }
   }
   redirect("/workers");
+}
+
+/**
+ * Apply a durable control mutation through the store's integer-version CAS.
+ * A stale write or an out-of-bounds patch changes nothing and redirects to the
+ * live control state; unexpected errors rethrow. No mutation here starts a pass.
+ */
+function mutateAutomationControl(patch: AutomationControlPatch, expectedVersion: number): void {
+  const store = createAutomationControlStore();
+  try {
+    store.update(patch, expectedVersion);
+  } catch (error) {
+    if (
+      error instanceof AutomationControlStaleVersionError ||
+      error instanceof AutomationControlValidationError
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function automationControlAction(formData: FormData) {
+  const op = String(formData.get("op") ?? "").trim();
+  const version = Number(formData.get("version"));
+  let patch: AutomationControlPatch | null = null;
+  if (op === "enable") {
+    patch = { enabled: true };
+  } else if (op === "disable") {
+    patch = { enabled: false };
+  } else if (op === "pause") {
+    patch = { operatorHold: true };
+  } else if (op === "resume") {
+    patch = { operatorHold: false };
+  }
+  if (patch === null) redirect("/automation");
+  mutateAutomationControl(patch, version);
+  redirect("/automation");
+}
+
+/**
+ * Parse a numeric form field strictly. A missing, blank, or non-finite value
+ * yields `undefined` so the caller leaves the stored value unchanged — an
+ * empty input never coerces to `0` and silently clobbers a ceiling. Only a
+ * finite number is returned.
+ */
+function parseNumericField(formData: FormData, name: string): number | undefined {
+  const raw = formData.get(name);
+  if (raw === null) return undefined;
+  const text = String(raw).trim();
+  if (text === "") return undefined;
+  const value = Number(text);
+  if (!Number.isFinite(value)) return undefined;
+  return value;
+}
+
+export async function automationSettingsAction(formData: FormData) {
+  const version = Number(formData.get("version"));
+  const store = createAutomationControlStore();
+  const current = store.get();
+  const patch: AutomationControlPatch = {};
+  const limit = parseNumericField(formData, "limit");
+  if (limit !== undefined && limit !== current.limit) patch.limit = limit;
+  const maxIterations = parseNumericField(formData, "maxIterations");
+  if (maxIterations !== undefined && maxIterations !== current.maxIterations) {
+    patch.maxIterations = maxIterations;
+  }
+  const maxCostUsd = parseNumericField(formData, "maxCostUsd");
+  if (maxCostUsd !== undefined && maxCostUsd !== current.maxCostUsd) patch.maxCostUsd = maxCostUsd;
+  const perCandidateCeilingUsd = parseNumericField(formData, "perCandidateCeilingUsd");
+  if (
+    perCandidateCeilingUsd !== undefined &&
+    perCandidateCeilingUsd !== current.perCandidateCeilingUsd
+  ) {
+    patch.perCandidateCeilingUsd = perCandidateCeilingUsd;
+  }
+  const paidAuthorization = formData.get("paidAuthorization") === "on";
+  if (paidAuthorization !== current.paidAuthorization) patch.paidAuthorization = paidAuthorization;
+  mutateAutomationControl(patch, version);
+  redirect("/automation");
 }
