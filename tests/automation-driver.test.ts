@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AutomationDriverError,
+  noLeaseGuard,
   runAutomationDriver,
   type AutomationDriverEffects,
   type AutomationDriverResult,
@@ -101,11 +102,15 @@ function harness(overrides: Partial<AutomationDriverEffects> = {}): {
   const startedCandidates: string[] = [];
   const audited: AutomationIntentOutcome[] = [];
   const effects: AutomationDriverEffects = {
-    startIssue: (issueId) => {
-      startedIssues.push(issueId);
+    startIssue: (issueId, guard) => {
+      guard.run(() => {
+        startedIssues.push(issueId);
+      });
     },
-    startImprovement: (candidateId) => {
-      startedCandidates.push(candidateId);
+    startImprovement: (candidateId, guard) => {
+      guard.run(() => {
+        startedCandidates.push(candidateId);
+      });
     },
     audit: (outcome) => {
       audited.push(outcome);
@@ -117,7 +122,7 @@ function harness(overrides: Partial<AutomationDriverEffects> = {}): {
     startedIssues,
     startedCandidates,
     audited,
-    run: (runInput) => runAutomationDriver(runInput, effects),
+    run: (runInput) => runAutomationDriver(runInput, effects, noLeaseGuard()),
   };
 }
 
@@ -190,6 +195,7 @@ describe("runAutomationDriver", () => {
           ],
         }),
         effects,
+        noLeaseGuard(),
       );
 
       // The audit for intent a runs before start b, proving strict sequencing.
@@ -210,6 +216,7 @@ describe("runAutomationDriver", () => {
           ),
         }),
         h.effects,
+        noLeaseGuard(),
         { planner },
       );
       expect(plannerCalls).toBe(1);
@@ -239,7 +246,7 @@ describe("runAutomationDriver", () => {
       const planner = () => planWith(over);
 
       await expect(
-        runAutomationDriver(input(), h.effects, { planner }),
+        runAutomationDriver(input(), h.effects, noLeaseGuard(), { planner }),
       ).rejects.toThrow(AutomationDriverError);
 
       expect(h.startedIssues).toEqual([]);
@@ -254,7 +261,7 @@ describe("runAutomationDriver", () => {
       const planner = () => planWith(startIssueIntents(["issue-a", "issue-a"]));
 
       await expect(
-        runAutomationDriver(input(), h.effects, { planner }),
+        runAutomationDriver(input(), h.effects, noLeaseGuard(), { planner }),
       ).rejects.toThrow(/duplicate start-issue intent for issue-a/);
 
       expect(h.startedIssues).toEqual([]);
@@ -266,11 +273,13 @@ describe("runAutomationDriver", () => {
   describe("effect failure isolation", () => {
     it("fails only the throwing intent and continues with the rest", async () => {
       const h = harness({
-        startIssue: (issueId) => {
+        startIssue: (issueId, guard) => {
           if (issueId === "issue-b") {
             throw new Error("store rejected start");
           }
-          h.startedIssues.push(issueId);
+          guard.run(() => {
+            h.startedIssues.push(issueId);
+          });
         },
       });
       const out = await h.run(
@@ -368,7 +377,7 @@ describe("runAutomationDriver", () => {
     it("audits an explicit wait from a custom planner without any start effect", async () => {
       const h = harness();
       const planner = () => planWith([{ kind: "wait", reason: "host busy" }]);
-      const out = await runAutomationDriver(input(), h.effects, { planner });
+      const out = await runAutomationDriver(input(), h.effects, noLeaseGuard(), { planner });
 
       expect(out.results).toEqual([{ kind: "wait", reason: "host busy" }]);
       expect(h.audited).toEqual([{ kind: "wait", reason: "host busy" }]);
@@ -386,6 +395,7 @@ describe("runAutomationDriver", () => {
           candidates: [candidate({ id: "cand-1" })],
         }),
         { startIssue: h.effects.startIssue, audit: h.effects.audit },
+        noLeaseGuard(),
       );
 
       expect(h.startedIssues).toEqual(["issue-a"]);
@@ -405,6 +415,7 @@ describe("runAutomationDriver", () => {
           candidates: [candidate({ id: "cand-1" })],
         }),
         { startImprovement: h.effects.startImprovement, audit: h.effects.audit },
+        noLeaseGuard(),
       );
 
       expect(h.startedIssues).toEqual([]);

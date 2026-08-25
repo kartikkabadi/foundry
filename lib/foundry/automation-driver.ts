@@ -48,11 +48,44 @@ export type AutomationIntentOutcome =
   | { kind: "wait"; reason: string }
   | { kind: "stop"; reason: string };
 
-/** Start one unattended issue. Throwing marks that intent failed. */
-export type StartIssueEffect = (issueId: string) => void | Promise<void>;
+/** Thrown when a fencing check fails: the lease the caller must still hold is
+ *  no longer owned by them (released, expired, or taken over). The pass
+ *  aborts and the tick records a truthful failure, never success. */
+export class LeaseFenceError extends Error {
+  constructor(leaseId: string) {
+    super(`lease ${leaseId} lost during pass`);
+    this.name = "LeaseFenceError";
+  }
+}
 
-/** Start the recursive-improvement candidate. Throwing marks that intent failed. */
-export type StartImprovementEffect = (candidateId: string) => void | Promise<void>;
+/** Lease-guarded mutation capability handed to mutation-capable effects.
+ *  `run` is the ONLY mutation path a supervised effect may use: it executes
+ *  `mutate` inside a lease-guarded critical section (same SQLite
+ *  connection/transaction) and throws `LeaseFenceError` when the lease is no
+ *  longer live — released, expired, or taken over — so the mutation never
+ *  runs stale. The effect may do async work before `run`, but the mutation
+ *  itself must be synchronous: a transaction cannot span awaits. */
+export type LeaseGuard = {
+  leaseId: string;
+  owner: string;
+  run: <T>(mutate: () => T) => T;
+};
+
+/** A pass with no lease (standalone runtime): the guard admits every
+ *  mutation. The supervisor never uses this — it builds a real guard tied to
+ *  its lease. */
+export function noLeaseGuard(): LeaseGuard {
+  return { leaseId: "", owner: "", run: <T>(mutate: () => T): T => mutate() };
+}
+
+/** Start one unattended issue. Receives the lease guard and must perform any
+ *  durable mutation through `guard.run` (never directly); throwing marks that
+ *  intent failed, and a `LeaseFenceError` aborts the whole pass. */
+export type StartIssueEffect = (issueId: string, guard: LeaseGuard) => void | Promise<void>;
+
+/** Start the recursive-improvement candidate. Same guarded-mutation contract
+ *  as `StartIssueEffect`. */
+export type StartImprovementEffect = (candidateId: string, guard: LeaseGuard) => void | Promise<void>;
 
 /** Audit sink; receives one outcome per intent, in plan order. Best-effort. */
 export type AuditEffect = (outcome: AutomationIntentOutcome) => void | Promise<void>;
@@ -121,10 +154,18 @@ function failureMessage(error: unknown): string {
  * Run one bounded automation pass. Builds the plan once, applies start intents
  * sequentially in plan order, and records one outcome per intent. `wait` and
  * `stop` only reach the audit sink. Validation errors throw before any effect.
+ *
+ * `guard` is the lease guard handed to each start effect: the effect performs
+ * its durable mutation through `guard.run`, which is the supervisor's atomic
+ * admission boundary (lease-live check and mutation on the same
+ * connection/transaction). A `LeaseFenceError` from `guard.run` is rethrown,
+ * never folded into a per-intent failure, so a lost lease aborts the pass and
+ * the tick records a truthful failure. A lease-less pass passes `noLeaseGuard()`.
  */
 export async function runAutomationDriver(
   input: AutomationInput,
   effects: AutomationDriverEffects,
+  guard: LeaseGuard,
   options: AutomationDriverOptions = {},
 ): Promise<AutomationDriverResult> {
   const planner = options.planner ?? planAutomation;
@@ -137,7 +178,7 @@ export async function runAutomationDriver(
   let failedStarts = 0;
 
   for (const intent of plan.intents) {
-    const outcome = await applyIntent(intent, effects);
+    const outcome = await applyIntent(intent, effects, guard);
     results.push(outcome);
     if (outcome.kind === "start-issue" && outcome.status === "succeeded") {
       startedIssueIds.push(outcome.issueId);
@@ -165,6 +206,7 @@ export async function runAutomationDriver(
 async function applyIntent(
   intent: AutomationIntent,
   effects: AutomationDriverEffects,
+  guard: LeaseGuard,
 ): Promise<AutomationIntentOutcome> {
   if (intent.kind === "wait") {
     return { kind: "wait", reason: intent.reason };
@@ -183,9 +225,12 @@ async function applyIntent(
       };
     }
     try {
-      await start(intent.issueId);
+      await start(intent.issueId, guard);
       return { kind: "start-issue", issueId: intent.issueId, status: "succeeded" };
     } catch (error) {
+      if (error instanceof LeaseFenceError) {
+        throw error;
+      }
       return {
         kind: "start-issue",
         issueId: intent.issueId,
@@ -204,9 +249,12 @@ async function applyIntent(
     };
   }
   try {
-    await start(intent.candidateId);
+    await start(intent.candidateId, guard);
     return { kind: "start-improvement", candidateId: intent.candidateId, status: "succeeded" };
   } catch (error) {
+    if (error instanceof LeaseFenceError) {
+      throw error;
+    }
     return {
       kind: "start-improvement",
       candidateId: intent.candidateId,

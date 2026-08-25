@@ -22,6 +22,7 @@ import {
   type ImprovementProposal,
 } from "../lib/foundry/improvement-candidates";
 import type { AutomationIntentOutcome } from "../lib/foundry/automation-driver";
+import { noLeaseGuard } from "../lib/foundry/automation-driver";
 import type { AutomationControlAdapter } from "../lib/foundry/automation-control";
 import type { UnattendedSnapshot } from "../lib/foundry/unattended";
 import type { Issue } from "../lib/foundry/types";
@@ -155,11 +156,15 @@ function harness(overrides: Partial<AutomationRuntimeEffects> = {}): {
   const startedCandidates: string[] = [];
   const audited: AutomationIntentOutcome[] = [];
   const effects: AutomationRuntimeEffects = {
-    startIssue: (issueId) => {
-      startedIssues.push(issueId);
+    startIssue: (issueId, guard) => {
+      guard.run(() => {
+        startedIssues.push(issueId);
+      });
     },
-    startImprovement: (candidateId) => {
-      startedCandidates.push(candidateId);
+    startImprovement: (candidateId, guard) => {
+      guard.run(() => {
+        startedCandidates.push(candidateId);
+      });
     },
     audit: (outcome) => {
       audited.push(outcome);
@@ -172,7 +177,7 @@ function harness(overrides: Partial<AutomationRuntimeEffects> = {}): {
     startedCandidates,
     audited,
     run: (control) =>
-      runAutomationRuntime(control, { snapshots: [], candidates: [] }, effects),
+      runAutomationRuntime(control, { snapshots: [], candidates: [] }, effects, noLeaseGuard()),
   };
 }
 
@@ -194,6 +199,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [makeSnapshot({ id: "issue-1" })], candidates },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(true);
@@ -224,6 +230,7 @@ describe("prove automation runtime (disposable)", () => {
         candidates: [],
       },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(true);
@@ -242,6 +249,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [], candidates: [deriveCandidate()] },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(true);
@@ -260,6 +268,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [], candidates: [deriveCandidate()] },
       h.effects,
+      noLeaseGuard(),
     );
     expect(h.startedCandidates).toEqual([]);
     expect(denied.driver?.results).toEqual([
@@ -272,6 +281,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [], candidates: [deriveCandidate()] },
       h.effects,
+      noLeaseGuard(),
     );
     expect(granted.ran).toBe(true);
     expect(h.startedCandidates).toEqual(["cand-1"]);
@@ -289,6 +299,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [makeSnapshot({ id: "issue-1" })], candidates },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(false);
@@ -308,6 +319,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [makeSnapshot({ id: "issue-1" })], candidates },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(false);
@@ -330,6 +342,7 @@ describe("prove automation runtime (disposable)", () => {
       control,
       { snapshots: [makeSnapshot({ id: "issue-1" })], candidates: [] },
       h.effects,
+      noLeaseGuard(),
     );
 
     expect(out.ran).toBe(false);

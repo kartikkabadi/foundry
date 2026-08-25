@@ -21,10 +21,62 @@ export const AUTOMATION_LIMIT_MIN = 1;
 /** Highest legal per-pass issue limit; shared with the unattended selector cap. */
 export const AUTOMATION_LIMIT_CAP = UNATTENDED_LIMIT_CAP;
 
+/** Explicit operator authority granted to autonomous automation. A
+ *  discriminated, never-boolean authority model: each value is a distinct
+ *  permission level and other surfaces read this field to decide what a pass
+ *  may do. `observe` is read-only, `build` may construct isolated artifacts,
+ *  and `publish` additionally permits branch and PR publication — and only
+ *  after exact-SHA verification. Publish never authorizes merge, deploy,
+ *  cleanup, VPS mutation, or self-modification. */
+export const AUTOMATION_AUTHORITIES = ["observe", "build", "publish"] as const;
+export type AutomationAuthority = (typeof AUTOMATION_AUTHORITIES)[number];
+
+/** Narrow type guard over the closed authority set; unknown values fail closed. */
+export function isAutomationAuthority(value: unknown): value is AutomationAuthority {
+  return (
+    typeof value === "string" && (AUTOMATION_AUTHORITIES as readonly string[]).includes(value)
+  );
+}
+
+/** Truthful capability matrix for each authority level. `permits` is exactly
+ *  what the level authorizes; `never` is what it explicitly forbids. The UI
+ *  renders this matrix verbatim so on-screen claims cannot drift from the
+ *  domain model. */
+export const AUTOMATION_AUTHORITY_META: Record<
+  AutomationAuthority,
+  { label: string; permits: readonly string[]; never: readonly string[] }
+> = {
+  observe: {
+    label: "Observe",
+    permits: ["Read-only monitoring and inspection of automation state"],
+    never: ["Build artifacts", "Publish branches or PRs"],
+  },
+  build: {
+    label: "Build",
+    permits: ["Construct candidates and branches in isolation"],
+    never: ["Publish branches or PRs"],
+  },
+  publish: {
+    label: "Publish",
+    permits: [
+      "Branch and PR publication, and only after exact-SHA verification",
+    ],
+    never: [
+      "Merge",
+      "Deploy",
+      "Cleanup",
+      "VPS mutation",
+      "Self-modification",
+    ],
+  },
+};
+
 /** The durable, operator-owned automation control record. */
 export type AutomationControl = {
   /** True while the autonomous driver may run passes. */
   enabled: boolean;
+  /** Explicit operator authority; defaults to `observe` (read-only). */
+  authority: AutomationAuthority;
   /** Operator hold: true pauses automation without disabling it. */
   operatorHold: boolean;
   /** Per-pass issue selection limit; integer in [AUTOMATION_LIMIT_MIN, AUTOMATION_LIMIT_CAP]. */
@@ -48,6 +100,7 @@ export type AutomationControlPatch = Partial<
   Pick<
     AutomationControl,
     | "enabled"
+    | "authority"
     | "operatorHold"
     | "limit"
     | "maxIterations"
@@ -89,6 +142,7 @@ export class AutomationControlValidationError extends Error {
 export function defaultAutomationControl(now: string): AutomationControl {
   return {
     enabled: false,
+    authority: "observe",
     operatorHold: false,
     limit: 5,
     maxIterations: 10,
@@ -132,6 +186,14 @@ export function applyAutomationControlPatch(
 
   if (patch.enabled !== undefined) {
     next.enabled = assertBoolean(patch.enabled, "enabled");
+  }
+  if (patch.authority !== undefined) {
+    if (!isAutomationAuthority(patch.authority)) {
+      throw new AutomationControlValidationError(
+        `authority must be one of ${AUTOMATION_AUTHORITIES.join(", ")}, received ${String(patch.authority)}`,
+      );
+    }
+    next.authority = patch.authority;
   }
   if (patch.operatorHold !== undefined) {
     next.operatorHold = assertBoolean(patch.operatorHold, "operatorHold");

@@ -1,10 +1,13 @@
-import { automationControlAction, automationSettingsAction } from "@/app/actions";
+import { automationAuthorityAction, automationControlAction, automationSettingsAction } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AUTOMATION_AUTHORITIES,
+  AUTOMATION_AUTHORITY_META,
   AUTOMATION_LIMIT_CAP,
   AUTOMATION_LIMIT_MIN,
+  type AutomationAuthority,
   type AutomationControl,
 } from "@/lib/foundry/automation-control";
 import { createAutomationControlStore } from "@/lib/foundry/store";
@@ -17,6 +20,16 @@ type AutomationStatus = "enabled" | "paused" | "disabled";
 function statusOf(control: AutomationControl): AutomationStatus {
   if (!control.enabled) return "disabled";
   return control.operatorHold ? "paused" : "enabled";
+}
+
+/**
+ * Remount key for the authority form. Derived from the durable authority so a
+ * redirect after a saved authority change remounts the radio group and
+ * re-reads `defaultChecked` — an unchanged key would let a stale checked radio
+ * survive the RSC update and resubmit an old authority.
+ */
+export function authorityFormKey(authority: AutomationAuthority): string {
+  return `authority-${authority}`;
 }
 
 const STATUS_META: Record<
@@ -57,9 +70,10 @@ export default function AutomationPage() {
       <header>
         <h1 className="text-2xl font-medium tracking-tight">Automation</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Operator control for bounded autonomous passes. This page only configures durable control
-          state and ceilings — it never starts a pass, and nothing here publishes, merges, or
-          deploys.
+          Operator control for bounded autonomous passes and the explicit
+          authority granted to them. This page only configures durable control
+          state, authority, and ceilings — it never starts a pass, and nothing
+          here publishes, merges, or deploys.
         </p>
       </header>
 
@@ -101,6 +115,54 @@ export default function AutomationPage() {
       </section>
 
       <section className="rounded-md border border-border p-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm text-muted-foreground">Authority</h2>
+          <p className="text-xs text-muted-foreground">
+            What autonomous automation is explicitly permitted to do. Authority is operator policy
+            only: saving it updates the durable control record and starts no work.
+          </p>
+        </div>
+        <form
+          action={automationAuthorityAction}
+          className="mt-4 flex flex-col gap-3"
+          key={authorityFormKey(control.authority)}
+        >
+          <input name="version" type="hidden" value={control.version} />
+          {AUTOMATION_AUTHORITIES.map((authority) => {
+            const meta = AUTOMATION_AUTHORITY_META[authority];
+            return (
+              <label
+                key={authority}
+                className="flex cursor-pointer gap-3 rounded-md border border-border p-3 text-sm"
+              >
+                <input
+                  className="mt-1"
+                  defaultChecked={control.authority === authority}
+                  name="authority"
+                  type="radio"
+                  value={authority}
+                />
+                <span>
+                  <span className="block text-foreground">{meta.label}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    Permits: {meta.permits.join("; ")}. Never: {meta.never.join(", ")}.
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+          <p className="text-xs text-muted-foreground">
+            Publish is the highest grant and stays narrow: branch and PR publication, and only
+            after exact-SHA verification. No authority level merges, deploys, cleans up, mutates a
+            VPS, or self-modifies.
+          </p>
+          <Button className="w-fit" type="submit">
+            Save authority
+          </Button>
+        </form>
+      </section>
+
+      <section className="rounded-md border border-border p-4">
         <h2 className="text-sm text-muted-foreground">Current control</h2>
         <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <div className="flex items-center justify-between gap-4">
@@ -122,6 +184,10 @@ export default function AutomationPage() {
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Paid authorization</dt>
             <dd className="font-mono">{control.paidAuthorization ? "Granted" : "Not granted"}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">Authority</dt>
+            <dd className="font-mono">{AUTOMATION_AUTHORITY_META[control.authority].label}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Updated</dt>

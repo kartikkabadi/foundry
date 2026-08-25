@@ -216,7 +216,9 @@ export function harvestLesson(
  * approved it, it would not relax a gate or budget, its stable key is not
  * already promoted, and it has recurred across enough distinct issues (or the
  * operator promoted it explicitly). Never installs anything; the caller decides
- * what to do with the record.
+ * what to do with the record. Automated approval (approval-policy.ts) composes
+ * this gate: it synthesizes an independent review and passes operatorApproved,
+ * so these guarantees are re-enforced, never bypassed.
  */
 export function evaluatePromotion(
   lesson: LessonRecord,
