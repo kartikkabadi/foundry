@@ -22,6 +22,7 @@ import {
   type AutomationDriverEffects,
   type AutomationDriverResult,
   type AutomationIntentOutcome,
+  type LeaseGuard,
 } from "./automation-driver";
 import type { ImprovementCandidate, ImprovementPolicyState } from "./improvement-loop";
 import { UNATTENDED_LIMIT_CAP, type UnattendedSnapshot } from "./unattended";
@@ -58,17 +59,20 @@ export type AutomationRuntimeResult = {
 /**
  * Run one bounded automation pass under durable operator control.
  *
- * Reads the control record once. When it is disabled or held, the runtime
+ * Read the control record once. When it is disabled or held, the runtime
  * returns with no planning and no start effects, auditing a single terminal
  * outcome: `wait` under an operator hold (a transient pause), `stop` when
  * disabled. When enabled, the durable record's limits and policy ceilings are
  * applied to the driver input and the pass is delegated to
- * `runAutomationDriver` with the injected effects unchanged.
+ * `runAutomationDriver` with the injected effects unchanged. `guard` is the
+ * lease guard handed to each start effect — the supervisor's atomic mutation
+ * admission boundary; a lease-less (standalone) pass passes `noLeaseGuard()`.
  */
 export async function runAutomationRuntime(
   control: AutomationControlAdapter,
   state: AutomationRuntimeState,
   effects: AutomationRuntimeEffects,
+  guard: LeaseGuard,
 ): Promise<AutomationRuntimeResult> {
   const controlRecord = control.get();
 
@@ -103,6 +107,6 @@ export async function runAutomationRuntime(
     policy,
   };
 
-  const driver = await runAutomationDriver(input, effects);
+  const driver = await runAutomationDriver(input, effects, guard);
   return { ran: true, control: controlRecord, driver };
 }

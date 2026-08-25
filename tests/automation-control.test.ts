@@ -67,6 +67,7 @@ const VALIDATION_NAME = "AutomationControlValidationError";
 
 const EXPECTED_DEFAULTS = {
   enabled: false,
+  authority: "observe",
   operatorHold: false,
   limit: 5,
   maxIterations: 10,
@@ -83,6 +84,7 @@ describe("automation control defaults", () => {
     const control = store.get();
     expect(control).toEqual({ ...EXPECTED_DEFAULTS, updatedAt: BASE });
     expect(control.enabled).toBe(false);
+    expect(control.authority).toBe("observe");
     expect(control.paidAuthorization).toBe(false);
   });
 
@@ -343,6 +345,79 @@ describe("automation control paid authorization", () => {
     store.update({ paidAuthorization: true }, 1);
     store.update({ paidAuthorization: false }, 2);
     expect(store.get().paidAuthorization).toBe(false);
+  });
+});
+
+describe("automation control authority", () => {
+  it("defaults authority to observe (read-only) even when enabled", async () => {
+    const { stamp } = clock();
+    const store = await loadStore({ now: stamp });
+    expect(store.get().authority).toBe("observe");
+    store.update({ enabled: true }, 1);
+    // Enabling never escalates authority; it stays observe until an explicit patch.
+    expect(store.get().authority).toBe("observe");
+  });
+
+  it.each(["merge", "admin", "deploy", "", "PUBLISH", "publish "])(
+    "rejects an invalid authority %j",
+    async (value) => {
+      const { stamp } = clock();
+      const store = await loadStore({ now: stamp });
+      expectThrowsNamed(
+        () => store.update({ authority: value as never }, 1),
+        VALIDATION_NAME,
+        /authority must be one of observe, build, publish/,
+      );
+      expect(store.get()).toMatchObject({ authority: "observe", version: 1 });
+    },
+  );
+
+  it("accepts every authority in the closed set", async () => {
+    const { stamp } = clock();
+    const store = await loadStore({ now: stamp });
+    for (const [authority, version] of [
+      ["build", 2],
+      ["publish", 3],
+      ["observe", 4],
+    ] as const) {
+      store.update({ authority }, version - 1);
+      expect(store.get()).toMatchObject({ authority, version });
+    }
+  });
+
+  it("persists an authority change durably across a fresh connection", async () => {
+    const { stamp } = clock();
+    const first = await loadStore({ now: stamp });
+    const updated = first.update({ authority: "build" }, 1);
+    expect(updated).toMatchObject({ authority: "build", version: 2 });
+    expect(updated.enabled).toBe(false);
+
+    vi.resetModules();
+    const fresh = await loadStore({ now: stamp });
+    expect(fresh.get()).toMatchObject({ authority: "build", version: 2 });
+  });
+
+  it("guards an authority change with the same integer CAS as every other field", async () => {
+    const { stamp } = clock();
+    const store = await loadStore({ now: stamp });
+    store.update({ authority: "build" }, 1);
+    expectThrowsNamed(
+      () => store.update({ authority: "publish" }, 1),
+      STALE_NAME,
+      /expected version 1, current version 2/,
+    );
+    expect(store.get()).toMatchObject({ authority: "build", version: 2 });
+  });
+
+  it("changes only the patched field in the pure patch", () => {
+    const current = { ...defaultAutomationControl(BASE), enabled: true, limit: 9, version: 7 };
+    const next = applyAutomationControlPatch(current, { authority: "publish" }, BASE);
+    expect(next.authority).toBe("publish");
+    expect(next.enabled).toBe(true);
+    expect(next.limit).toBe(9);
+    expect(next.operatorHold).toBe(false);
+    expect(next.paidAuthorization).toBe(false);
+    expect(next.version).toBe(8);
   });
 });
 

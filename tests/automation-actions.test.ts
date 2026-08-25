@@ -50,7 +50,8 @@ vi.mock("@/lib/foundry/store", async () => {
   };
 });
 
-import { automationSettingsAction } from "@/app/actions";
+import { automationAuthorityAction, automationSettingsAction } from "@/app/actions";
+import { authorityFormKey } from "@/app/automation/page";
 import { redirect } from "next/navigation";
 
 function settingsForm(entries: Record<string, string>): FormData {
@@ -141,5 +142,86 @@ describe("automationSettingsAction numeric parsing", () => {
 
     expect(harness.control?.maxIterations).toBe(10);
     expect(harness.control?.version).toBe(1);
+  });
+});
+
+describe("automationAuthorityAction", () => {
+  function authorityForm(authority: string, version: string = "1"): FormData {
+    return settingsForm({ authority, version });
+  }
+
+  it("persists an explicit authority change through CAS", async () => {
+    await automationAuthorityAction(authorityForm("build"));
+
+    expect(harness.control).toMatchObject({ authority: "build", version: 2 });
+    expect(harness.control?.enabled).toBe(false);
+    expect(harness.control?.paidAuthorization).toBe(false);
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("persists publish as the highest explicit grant", async () => {
+    await automationAuthorityAction(authorityForm("publish"));
+
+    expect(harness.control).toMatchObject({ authority: "publish", version: 2 });
+    expect(harness.control?.enabled).toBe(false);
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("rejects an authority outside the closed set without changing the record", async () => {
+    await automationAuthorityAction(authorityForm("merge"));
+
+    expect(harness.control).toMatchObject({ authority: "observe", version: 1 });
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("rejects a blank authority without changing the record", async () => {
+    await automationAuthorityAction(authorityForm(""));
+
+    expect(harness.control).toMatchObject({ authority: "observe", version: 1 });
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("is a no-op when the submitted authority already matches", async () => {
+    await automationAuthorityAction(authorityForm("observe"));
+
+    expect(harness.control).toMatchObject({ authority: "observe", version: 1 });
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("fails closed on a stale version without clobbering newer state", async () => {
+    await automationAuthorityAction(authorityForm("build"));
+    expect(harness.control?.version).toBe(2);
+
+    // A second tab still holding version 1 cannot overwrite the newer record.
+    await automationAuthorityAction(authorityForm("publish", "1"));
+    expect(harness.control).toMatchObject({ authority: "build", version: 2 });
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+
+  it("updates policy only and starts no work", async () => {
+    const { createAutomationControlStore } = await import("@/lib/foundry/store");
+    const adapter = createAutomationControlStore();
+    const updateSpy = vi.spyOn(adapter, "update");
+    await automationAuthorityAction(authorityForm("build"));
+
+    // The only store surface touched is the control adapter, and the only
+    // mutation is a policy patch for authority — never a run/enable effect.
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    const patch = updateSpy.mock.calls[0][0];
+    expect(Object.keys(patch).sort()).toEqual(["authority"]);
+    expect(harness.control).toMatchObject({ authority: "build", enabled: false, version: 2 });
+    expect(redirect).toHaveBeenCalledWith("/automation");
+  });
+});
+
+describe("authorityFormKey (stale-radio remount guard)", () => {
+  it("changes whenever the durable authority changes", () => {
+    expect(authorityFormKey("observe")).not.toBe(authorityFormKey("build"));
+    expect(authorityFormKey("build")).not.toBe(authorityFormKey("publish"));
+  });
+
+  it("is stable for the same durable authority", () => {
+    expect(authorityFormKey("observe")).toBe(authorityFormKey("observe"));
+    expect(authorityFormKey("publish")).toBe(authorityFormKey("publish"));
   });
 });

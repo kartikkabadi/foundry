@@ -7,11 +7,27 @@ import {
   AutomationControlStaleVersionError,
   AutomationControlValidationError,
   defaultAutomationControl,
+  isAutomationAuthority,
+  type AutomationAuthority,
   type AutomationControl,
   type AutomationControlAdapter,
   type AutomationControlPatch,
 } from "./automation-control";
+import {
+  applyAuthorityProfilePatch,
+  defaultAuthorityProfile,
+  type AuthorityProfile,
+  type AuthorityScope,
+} from "./authority";
 import { dbPath } from "./paths";
+import {
+  runSupervisorTick,
+  type SupervisorLease,
+  type SupervisorStoreAdapter,
+  type SupervisorTickEvent,
+  type SupervisorTickInput,
+  type SupervisorTickResult,
+} from "./automation-supervisor";
 import {
   STAGES,
   STALE_JOB_MS,
@@ -190,6 +206,7 @@ const SCHEMA = `
     CREATE TABLE IF NOT EXISTS automation_control (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       enabled INTEGER NOT NULL DEFAULT 0,
+      authority TEXT NOT NULL DEFAULT 'observe',
       operator_hold INTEGER NOT NULL DEFAULT 0,
       "limit" INTEGER NOT NULL DEFAULT 5,
       max_iterations INTEGER NOT NULL DEFAULT 10,
@@ -201,8 +218,37 @@ const SCHEMA = `
     );
 `;
 
+/** Durable singleton-lease and tick-ledger schema for the automation
+ *  supervisor. The lease is a single row (`id = 1`) whose fields are swapped
+ *  by atomic compare-and-set statements; the tick ledger is keyed by `tick_id`
+ *  so a terminal outcome is recorded exactly once and a replayed tick id is a
+ *  durable no-op. `busy` is a nonterminal signal and is never written, but it
+ *  is admitted here so the ledger type stays closed. */
+const SUPERVISOR_SCHEMA = `
+    CREATE TABLE IF NOT EXISTS supervisor_lease (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      lease_id TEXT NOT NULL,
+      owner TEXT NOT NULL,
+      tick_id TEXT NOT NULL,
+      acquired_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      released_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS supervisor_ticks (
+      tick_id TEXT PRIMARY KEY,
+      owner TEXT NOT NULL,
+      outcome TEXT NOT NULL CHECK (
+        outcome IN ('disabled','held','denied','duplicate-tick','lease-held','busy','ran','idle','failed')
+      ),
+      reason TEXT NOT NULL,
+      at TEXT NOT NULL,
+      previous_owner TEXT
+    );
+`;
+
 function migrate(conn: DatabaseSync): void {
   conn.exec(ORCHESTRATION_SCHEMA);
+  conn.exec(SUPERVISOR_SCHEMA);
   ensureColumn(conn, "issues", "project_id", "TEXT");
   ensureColumn(conn, "issues", "cycle_id", "TEXT");
   ensureColumn(conn, "issues", "module_id", "TEXT");
@@ -210,6 +256,7 @@ function migrate(conn: DatabaseSync): void {
   ensureColumn(conn, "issues", "run_mode", "TEXT NOT NULL DEFAULT 'hitl'");
   ensureColumn(conn, "issues", "walk_hold", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(conn, "issues", "oneshot_stop_reason", "TEXT");
+  ensureColumn(conn, "automation_control", "authority", "TEXT NOT NULL DEFAULT 'observe'");
   ensureColumn(conn, "issue_jobs", "heartbeat_at", "TEXT");
   ensureColumn(conn, "issue_jobs", "attempts", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn(conn, "issue_jobs", "next_retry_at", "TEXT");
@@ -353,7 +400,7 @@ export function createLearningStore(): LearningStoreAdapter {
 
 const CONTROL_UPDATE_SQL = `
   UPDATE automation_control SET
-    enabled = ?, operator_hold = ?, "limit" = ?, max_iterations = ?,
+    enabled = ?, authority = ?, operator_hold = ?, "limit" = ?, max_iterations = ?,
     max_cost_usd = ?, per_candidate_ceiling_usd = ?,
     paid_authorization = ?, version = ?, updated_at = ?
   WHERE id = 1 AND version = ?
@@ -375,20 +422,22 @@ export function createAutomationControlStore(
   const stamp = options.now ?? (() => new Date().toISOString());
   const ensureRow = conn.prepare(
     `INSERT OR IGNORE INTO automation_control (
-      id, enabled, operator_hold, "limit", max_iterations, max_cost_usd,
+      id, enabled, authority, operator_hold, "limit", max_iterations, max_cost_usd,
       per_candidate_ceiling_usd, paid_authorization, version, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const select = conn.prepare(
-    `SELECT enabled, operator_hold, "limit", max_iterations, max_cost_usd,
+    `SELECT enabled, authority, operator_hold, "limit", max_iterations, max_cost_usd,
             per_candidate_ceiling_usd, paid_authorization, version, updated_at
      FROM automation_control WHERE id = 1`,
   );
   const update = conn.prepare(CONTROL_UPDATE_SQL);
 
   function mapControl(row: Record<string, unknown>): AutomationControl {
+    const authority = isAutomationAuthority(row.authority) ? row.authority : "observe";
     return {
       enabled: Boolean(row.enabled),
+      authority,
       operatorHold: Boolean(row.operator_hold),
       limit: Number(row.limit),
       maxIterations: Number(row.max_iterations),
@@ -405,6 +454,7 @@ export function createAutomationControlStore(
     ensureRow.run(
       1,
       defaults.enabled ? 1 : 0,
+      defaults.authority,
       defaults.operatorHold ? 1 : 0,
       defaults.limit,
       defaults.maxIterations,
@@ -437,6 +487,7 @@ export function createAutomationControlStore(
       const next = applyAutomationControlPatch(current, patch, stamp());
       const result = update.run(
         next.enabled ? 1 : 0,
+        next.authority,
         next.operatorHold ? 1 : 0,
         next.limit,
         next.maxIterations,
@@ -1103,5 +1154,240 @@ export function navCounts(): NavCounts {
     projects: listProjects().length,
     cycles: listCycles().length,
     modules: listModules().length,
+  };
+}
+
+/**
+ * Durable SQLite-backed `SupervisorStoreAdapter` for the automation
+ * supervisor. Every operation is a single synchronous compare-and-set
+ * statement against `supervisor_lease` / `supervisor_ticks`, so the CAS
+ * guards (no held lease, expired lease, owner match, unique tick id) hold
+ * atomically even across independent connections to the same database.
+ *
+ * `connection` is the shared Foundry connection by default; callers that need
+ * a second independent connection (tests, multi-instance supervision) may
+ * inject one. `now` is the wall clock used for takeover-expiry and release
+ * stamps; inject it to make the adapter deterministic.
+ */
+export function createSupervisorStore(
+  options: { now?: () => string; connection?: DatabaseSync } = {},
+): SupervisorStoreAdapter {
+  const conn = options.connection ?? database();
+  conn.exec(SUPERVISOR_SCHEMA);
+  const stamp = options.now ?? (() => new Date().toISOString());
+
+  const mapLease = (row: {
+    lease_id: string;
+    owner: string;
+    tick_id: string;
+    acquired_at: string;
+    expires_at: string;
+    released_at: string | null;
+  }): SupervisorLease => ({
+    id: row.lease_id,
+    owner: row.owner,
+    tickId: row.tick_id,
+    acquiredAt: row.acquired_at,
+    expiresAt: row.expires_at,
+    releasedAt: row.released_at,
+  });
+
+  return {
+    getLease: () => {
+      const row = conn
+        .prepare("SELECT lease_id, owner, tick_id, acquired_at, expires_at, released_at FROM supervisor_lease WHERE id = 1")
+        .get() as
+        | { lease_id: string; owner: string; tick_id: string; acquired_at: string; expires_at: string; released_at: string | null }
+        | undefined;
+      return row ? mapLease(row) : null;
+    },
+
+    acquireLease: (lease) => {
+      const updated = conn
+        .prepare(
+          `UPDATE supervisor_lease SET lease_id = ?, owner = ?, tick_id = ?, acquired_at = ?, expires_at = ?, released_at = NULL
+           WHERE id = 1 AND released_at IS NOT NULL`,
+        )
+        .run(lease.id, lease.owner, lease.tickId, lease.acquiredAt, lease.expiresAt);
+      if (updated.changes === 1) return true;
+      const inserted = conn
+        .prepare(
+          `INSERT OR IGNORE INTO supervisor_lease (id, lease_id, owner, tick_id, acquired_at, expires_at, released_at)
+           VALUES (1, ?, ?, ?, ?, ?, NULL)`,
+        )
+        .run(lease.id, lease.owner, lease.tickId, lease.acquiredAt, lease.expiresAt);
+      return inserted.changes === 1;
+    },
+
+    takeOverLease: (expectedLeaseId, replacementLease) => {
+      const updated = conn
+        .prepare(
+          `UPDATE supervisor_lease SET lease_id = ?, owner = ?, tick_id = ?, acquired_at = ?, expires_at = ?, released_at = NULL
+           WHERE id = 1 AND lease_id = ? AND released_at IS NULL AND expires_at <= ?`,
+        )
+        .run(
+          replacementLease.id,
+          replacementLease.owner,
+          replacementLease.tickId,
+          replacementLease.acquiredAt,
+          replacementLease.expiresAt,
+          expectedLeaseId,
+          stamp(),
+        );
+      return updated.changes === 1;
+    },
+
+    renewLease: (id, owner, expiresAt) => {
+      const updated = conn
+        .prepare(
+          `UPDATE supervisor_lease SET expires_at = ?
+           WHERE id = 1 AND lease_id = ? AND owner = ? AND released_at IS NULL AND expires_at > ?`,
+        )
+        .run(expiresAt, id, owner, stamp());
+      return updated.changes === 1;
+    },
+
+    isLeaseLive: (id, owner) => {
+      const row = conn
+        .prepare(
+          `SELECT 1 FROM supervisor_lease
+           WHERE id = 1 AND lease_id = ? AND owner = ? AND released_at IS NULL AND expires_at > ?`,
+        )
+        .get(id, owner, stamp());
+      return row !== undefined;
+    },
+
+    withLiveLease: (id, owner, mutate) => {
+      // BEGIN IMMEDIATE takes the write lock, so no other connection can
+      // release, expire, or take over the lease while we are inside: the
+      // lease-live predicate and the mutation commit as one unit. A stale
+      // owner's mutation is never admitted.
+      conn.exec("BEGIN IMMEDIATE");
+      try {
+        const live = conn
+          .prepare(
+            `SELECT 1 FROM supervisor_lease
+             WHERE id = 1 AND lease_id = ? AND owner = ? AND released_at IS NULL AND expires_at > ?`,
+          )
+          .get(id, owner, stamp());
+        if (live === undefined) {
+          conn.exec("ROLLBACK");
+          return { admitted: false } as const;
+        }
+        const value = mutate();
+        conn.exec("COMMIT");
+        return { admitted: true, value };
+      } catch (error) {
+        try {
+          conn.exec("ROLLBACK");
+        } catch {
+          // The failure already ended the transaction; nothing left to undo.
+        }
+        throw error;
+      }
+    },
+
+    releaseLease: (id, owner) => {
+      const updated = conn
+        .prepare(
+          `UPDATE supervisor_lease SET released_at = ?
+           WHERE id = 1 AND lease_id = ? AND owner = ? AND released_at IS NULL`,
+        )
+        .run(stamp(), id, owner);
+      return updated.changes === 1;
+    },
+
+    isTickRecorded: (tickId) => {
+      const row = conn.prepare("SELECT 1 FROM supervisor_ticks WHERE tick_id = ?").get(tickId);
+      return row !== undefined;
+    },
+
+    recordTick: (event: SupervisorTickEvent) => {
+      conn
+        .prepare(
+          `INSERT OR IGNORE INTO supervisor_ticks (tick_id, owner, outcome, reason, at, previous_owner)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(event.tickId, event.owner, event.outcome, event.reason, event.at, event.previousOwner);
+    },
+  };
+}
+
+/**
+ * Derive the closed `AuthorityProfile` for a supervisor tick from the durable
+ * operator authority on `automation_control`, exactly:
+ *   observe -> observe granted only
+ *   build   -> observe + build granted
+ *   publish -> observe + build + publish granted
+ * Every other scope is explicitly denied. The profile is derived, never
+ * injected, so an `AuthorityProfile` can never disagree with the durable
+ * control row the runtime consults.
+ */
+export function supervisorAuthorityProfileFromControl(
+  authority: AutomationAuthority,
+  now: string,
+): AuthorityProfile {
+  const base = defaultAuthorityProfile(now);
+  const grant = (scope: AuthorityScope) => ({
+    granted: true,
+    reason: `derived from durable control authority ${authority}`,
+  });
+  switch (authority) {
+    case "observe":
+      return applyAuthorityProfilePatch(base, { observe: grant("observe") }, now);
+    case "build":
+      return applyAuthorityProfilePatch(
+        base,
+        { observe: grant("observe"), build: grant("build") },
+        now,
+      );
+    case "publish":
+      return applyAuthorityProfilePatch(
+        base,
+        { observe: grant("observe"), build: grant("build"), publish: grant("publish") },
+        now,
+      );
+  }
+}
+
+/** The caller-invoked production seam for one durable supervision tick. The
+ *  authority profile is derived from the durable control row, so it is not
+ *  part of the input. */
+export type SupervisorRuntimeTickInput = Omit<SupervisorTickInput, "store" | "now" | "authority">;
+
+/** A supervisor wired to its durable store. There is no daemon: a tick runs
+ *  only when a caller invokes `tick`, and the injected policy is disabled by
+ *  default, so nothing runs unless an operator enables it and calls. */
+export type SupervisorRuntime = {
+  store: SupervisorStoreAdapter;
+  tick: (input: SupervisorRuntimeTickInput) => Promise<SupervisorTickResult>;
+};
+
+/** Build a supervisor runtime wired to the durable SQLite store. The store
+ *  and the tick share one clock (`now`), so takeover-expiry checks and the
+ *  tick's own timestamps stay consistent. The authority profile is derived
+ *  from `input.control.get().authority` at tick time — never injected.
+ *
+ *  The seam always supplies the mid-pass renewal sleep (a real timer by
+ *  default), so a caller cannot disable renewal by omission; only the
+ *  operator policy `renewDuringPass: false` turns it off. Tests may inject a
+ *  fast `sleep` so the 30s renewal timer does not keep the harness alive. */
+export function createSupervisorRuntime(
+  options: { now?: () => string; connection?: DatabaseSync; sleep?: (ms: number) => Promise<void> } = {},
+): SupervisorRuntime {
+  const stamp = options.now ?? (() => new Date().toISOString());
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const store = createSupervisorStore({ ...options, now: stamp });
+  return {
+    store,
+    tick: (input) =>
+      runSupervisorTick({
+        ...input,
+        store,
+        now: stamp,
+        sleep,
+        authority: supervisorAuthorityProfileFromControl(input.control.get().authority, stamp()),
+      }),
   };
 }

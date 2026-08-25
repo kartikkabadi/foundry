@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   AutomationControlStaleVersionError,
   AutomationControlValidationError,
+  isAutomationAuthority,
   type AutomationControlPatch,
 } from "@/lib/foundry/automation-control";
 import { saveGrillSummary, startGrill } from "@/lib/foundry/grill";
@@ -384,5 +385,26 @@ export async function automationSettingsAction(formData: FormData) {
   const paidAuthorization = formData.get("paidAuthorization") === "on";
   if (paidAuthorization !== current.paidAuthorization) patch.paidAuthorization = paidAuthorization;
   mutateAutomationControl(patch, version);
+  redirect("/automation");
+}
+
+/**
+ * Apply an explicit authority change through the store's integer-version CAS.
+ * The submitted value must be one of the closed authority set
+ * (`observe` | `build` | `publish`); anything else changes nothing and
+ * redirects to the live control state. Like every control action here, this
+ * only persists policy — it never starts a pass, never publishes, and never
+ * invokes any execution effect.
+ */
+export async function automationAuthorityAction(formData: FormData) {
+  const version = Number(formData.get("version"));
+  const store = createAutomationControlStore();
+  const current = store.get();
+  const raw = String(formData.get("authority") ?? "").trim();
+  if (!isAutomationAuthority(raw) || raw === current.authority) {
+    redirect("/automation");
+    return;
+  }
+  mutateAutomationControl({ authority: raw }, version);
   redirect("/automation");
 }

@@ -18,6 +18,14 @@ import {
   type LessonReview,
   type PromotionRecord,
 } from "../lib/foundry/learning";
+import {
+  approveLessonAutomatically,
+  defaultApprovalPolicy,
+  evaluateAutomatedApproval,
+  type EvidenceRecord,
+  type EvidenceResolver,
+  type LessonRiskClassification,
+} from "../lib/foundry/approval-policy";
 
 const NOW = () => "2026-08-25T00:00:00.000Z";
 
@@ -597,5 +605,88 @@ describe("durable learning store (SQLite)", () => {
     const events = readEvents("issue-9");
     expect(events.filter((event) => event.kind === "lesson.harvested")).toHaveLength(1);
     expect(events.filter((event) => event.kind === "lesson.promoted")).toHaveLength(1);
+  });
+});
+
+describe("automated approval composes with evaluatePromotion without weakening it", () => {
+  const enabledPolicy = defaultApprovalPolicy({
+    enabled: true,
+    approvedClassifiers: ["verifier-1"],
+  });
+
+  function classificationOf(lesson: LessonRecord): LessonRiskClassification {
+    return {
+      category: { kind: "factual" },
+      issuedBy: "verifier-1",
+      issuedAt: NOW(),
+      lessonId: lesson.id,
+      lessonKey: lesson.key,
+    };
+  }
+
+  function boundResolver(lesson: LessonRecord): EvidenceResolver {
+    const byRef = new Map<string, EvidenceRecord>();
+    for (const ref of lesson.refs) {
+      byRef.set(ref, { id: ref, kind: "run", lessonKey: lesson.key });
+    }
+    return (ref) => byRef.get(ref);
+  }
+
+  it("promotes an eligible factual lesson through the ledger with the synthesized review", () => {
+    const { store, rows } = memoryStore();
+    const ledger = new LearningLedger(store, { operatorApproved: true, now: NOW });
+    const harvest = ledger.harvest(evidence({ author: "agent-a" }));
+    expect(harvest.ok).toBe(true);
+    if (!harvest.ok) throw new Error(harvest.reason);
+
+    const decision = evaluateAutomatedApproval(
+      harvest.lesson,
+      classificationOf(harvest.lesson),
+      enabledPolicy,
+      [],
+      { resolveEvidence: boundResolver(harvest.lesson), now: NOW },
+    );
+    expect(decision.kind).toBe("approved");
+    if (decision.kind !== "approved") return;
+
+    const promoted = ledger.promote(harvest.lesson.id, decision.review);
+    expect(promoted.ok).toBe(true);
+    if (!promoted.ok) throw new Error(promoted.reason);
+    expect(promoted.promotion.reviewer).toBe(enabledPolicy.authority);
+    expect(rows.filter((row) => row.kind === "promotion")).toHaveLength(1);
+  });
+
+  it("approveLessonAutomatically promotes and returns the same promotion shape", () => {
+    const lesson = recordOf(harvestLesson(evidence({ author: "agent-a" })));
+    const result = approveLessonAutomatically(lesson, classificationOf(lesson), enabledPolicy, [], {
+      resolveEvidence: boundResolver(lesson),
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.promotion).toMatchObject({
+      kind: "promotion",
+      key: lesson.key,
+      lessonId: lesson.id,
+      reviewer: enabledPolicy.authority,
+      approvedAt: NOW(),
+    });
+  });
+
+  it("rejects a forbidden class through the composed helper", () => {
+    const lesson = recordOf(
+      harvestLesson(
+        evidence({
+          pattern: "Merge the pull request when tests pass to reduce review lag",
+          retentionRule: "Merge the pull request when tests pass to reduce review lag",
+        }),
+      ),
+    );
+    const result = approveLessonAutomatically(lesson, classificationOf(lesson), enabledPolicy, [], {
+      resolveEvidence: boundResolver(lesson),
+      now: NOW,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/merge/i);
   });
 });
